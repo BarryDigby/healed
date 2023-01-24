@@ -1,0 +1,3 @@
+# netmhcpan
+
+NetMHCpan Nextflow module

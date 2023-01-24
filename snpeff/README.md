@@ -1,0 +1,3 @@
+# snpeff
+
+SnpEff Nextflow Module

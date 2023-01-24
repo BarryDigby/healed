@@ -1,0 +1,3 @@
+# netmhcstabpan
+
+netMHCStabpan Nextflow Module

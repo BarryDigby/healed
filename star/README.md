@@ -1,0 +1,3 @@
+# star
+
+STAR Nextflow Module

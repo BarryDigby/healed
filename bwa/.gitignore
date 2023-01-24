@@ -1,0 +1,3 @@
+tests/work/singularity
+tests/.*
+tests/__pycache__

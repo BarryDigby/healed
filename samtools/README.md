@@ -1,0 +1,3 @@
+# samtools
+
+Samtools Nextflow Module

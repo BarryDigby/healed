@@ -1,0 +1,3 @@
+# sequenza
+
+Sequenza Nextflow module

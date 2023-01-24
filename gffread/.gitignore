@@ -1,0 +1,3 @@
+tests/.nextflow*
+tests/work/singularity
+tests/__pycache__

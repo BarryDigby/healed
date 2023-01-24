@@ -1,0 +1,32 @@
+image: aphoid/abra2:2.20
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  - bash Miniconda3-latest-Linux-x86_64.sh -b -p miniconda3 -f
+  - source miniconda3/bin/activate
+  - conda install -c anaconda pytest 
+  - conda install -c bioconda nextflow
+  - git clone https://gitlab.com/bgv-lens/nextflow/modules/tools/utilities.git /builds/bgv-lens/nextflow/modules/tools/utilities
+
+stages:
+ - Static Analysis
+ - Test
+
+#reqs:
+#  stage: .pre
+#  script:
+#    - python3 -m pip install -r requirements.txt
+
+pytest:
+  stage: Test
+  script:
+  - cd tests
+  - python3 -m pytest

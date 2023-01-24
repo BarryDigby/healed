@@ -1,0 +1,3 @@
+# whatshap
+
+WhatsHap Nextflow Module

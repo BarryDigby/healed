@@ -1,0 +1,3 @@
+# viral
+
+Viral Nextflow Module.

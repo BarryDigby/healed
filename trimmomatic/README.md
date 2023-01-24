@@ -1,0 +1,3 @@
+# trimmomatic
+
+Trimmomatic Nextflow Module

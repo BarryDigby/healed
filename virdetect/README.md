@@ -1,0 +1,3 @@
+# virdetect
+
+virdetect Nextflow Module

@@ -1,0 +1,3 @@
+# neosplice
+
+NeoSplice Nextflow Module

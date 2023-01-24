@@ -1,0 +1,3 @@
+# generic
+
+Generic Nextflow Module

@@ -1,0 +1,4 @@
+tests/__pycache__
+tests/work/singularity
+tests/.*
+tests/*/*/GRCh38.GENCODEv37
