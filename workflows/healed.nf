@@ -7,11 +7,11 @@
 def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 
 // Validate input parameters
-WorkflowHealed.initialise(params, log)
+//WorkflowHealed.initialise(params, log)
 
 // TODO nf-core: Add all file path parameters for the pipeline to the list below
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.multiqc_config, params.fasta ]
+def checkPathParamList = [ params.input, params.multiqc_config ]
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters
@@ -72,6 +72,7 @@ workflow HEALED {
         ch_input
     )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
+    INPUT_CHECK.out.reads.view()
 
     //
     // MODULE: Run FastQC
