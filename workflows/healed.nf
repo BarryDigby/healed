@@ -34,9 +34,6 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
-// SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
-//
 include { INPUT_CHECK } from '../subworkflows/local/input_check'
 
 /*
@@ -45,9 +42,6 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
-// MODULE: Installed directly from nf-core/modules
-//
 include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
@@ -58,19 +52,13 @@ include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-// Info required for completion email and summary
 def multiqc_report = []
 
 workflow HEALED {
 
     ch_versions = Channel.empty()
 
-    //
-    // SUBWORKFLOW: Read in samplesheet, validate and stage input files
-    //
-    INPUT_CHECK (
-        ch_input
-    )
+    INPUT_CHECK(ch_input)
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
     INPUT_CHECK.out.reads.view()
 
