@@ -46,6 +46,8 @@ include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 
+include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -57,19 +59,26 @@ def multiqc_report = []
 workflow HEALED {
 
     ch_versions = Channel.empty()
+    ch_reports  = Channel.empty()
 
+    //
+    // Parse samplesheet
+    //
     INPUT_CHECK(ch_input)
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
-    INPUT_CHECK.out.reads.view()
+
 
     //
-    // MODULE: Run FastQC
+    // FASTQC, FASTP, SPLIT FASTQ
     //
-    FASTQC (
-        INPUT_CHECK.out.reads
-    )
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    FASTQ_FASTQC_FASTP(INPUT_CHECK.out.reads)
+    ch_versions = ch_versions.mix(FASTQ_FASTQC_FASTP.out.versions)
+    ch_reports  = ch_reports.mix(FASTQ_FASTQC_FASTP.out.reports)
 
+
+    //
+    // COLLECT VERSIONS
+    //
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
@@ -87,7 +96,6 @@ workflow HEALED {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect(),
