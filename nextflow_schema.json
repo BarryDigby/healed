@@ -104,6 +104,21 @@
                     "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
                     "fa_icon": "far fa-file-code"
                 },
+                "gtf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "mimetype": "text/plain",
+                    "pattern": "^\\S+\\.gtf(\\.gz)?$",
+                    "description": "Path to GTF annotation file.",
+                    "fa_icon": "fas fa-code-branch",
+                    "help_text": "This parameter is *mandatory* if `--genome` is not specified."
+                },
+                "save_reference": {
+                    "type": "boolean",
+                    "fa_icon": "fas fa-download",
+                    "description": "Save built references.",
+                    "help_text": "Set this parameter, if you wish to save all computed reference files. This is useful to avoid re-computation on future runs."
+                },
                 "igenomes_base": {
                     "type": "string",
                     "format": "directory-path",
@@ -186,6 +201,11 @@
                     "fa_icon": "fas fa-vial",
                     "description": "If set, publishes split FASTQ files. Intended for testing purposes.",
                     "hidden": false
+                },
+                "skip_fastqc": {
+                    "type": "boolean",
+                    "description": "Skip FastQC.",
+                    "fa_icon": "fas fa-fast-forward"
                 }
             }
         },

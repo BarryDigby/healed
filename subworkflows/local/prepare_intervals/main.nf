@@ -97,7 +97,7 @@ workflow PREPARE_INTERVALS {
             .flatten().collate(2)
             .map{duration, intervalFile -> intervalFile}
             .collect().map{ it ->
-                   [it, it.size() ] // Adding number of intervals as elements
+                    [it, it.size() ] // Adding number of intervals as elements
                 }.transpose()
 
         // 2. Create bed.gz and bed.gz.tbi for each interval file. They are split by region (see above)
@@ -112,6 +112,7 @@ workflow PREPARE_INTERVALS {
     }
 
     emit:
+        fasta_fai                   = fasta_fai                                              // path: fasta_fai
         intervals_bed               = ch_intervals                                           // path: intervals.bed, num_intervals                        [intervals split for parallel execution]
         intervals_bed_gz_tbi        = ch_intervals_bed_gz_tbi                                // path: target.bed.gz, target.bed.gz.tbi, num_intervals     [intervals split for parallel execution]
         intervals_bed_combined      = ch_intervals_combined.map{meta, bed -> bed }.collect() // path: intervals.bed                        [all intervals in one file]
