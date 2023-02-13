@@ -4,6 +4,7 @@ Note: This module is not producing consistent files. These tests may be helpful
 to see expected outputs, but will fail the checksum test.
 
 Testing can be performed locally, but requires:
+
 - Nextflow
 - Singularity
 - Python3 and PyTest

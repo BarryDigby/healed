@@ -6,10 +6,9 @@ Website: https://bedtools.readthedocs.io/en/latest/
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| bedtools_intersect | docker://biocontainers/bedtools:v2.28.0_cv2 | 4 * task.attempt | 8.GB.plus(8.GB * task.attempt) |
-
+| workflow           | container                                   | cpus              | memory                          |
+| ------------------ | ------------------------------------------- | ----------------- | ------------------------------- |
+| bedtools_intersect | docker://biocontainers/bedtools:v2.28.0_cv2 | 4 \* task.attempt | 8.GB.plus(8.GB \* task.attempt) |
 
 ## Workflows
 
@@ -18,6 +17,7 @@ Website: https://bedtools.readthedocs.io/en/latest/
 Compares two or more BED/BAM/VCF/GFF files and identifies all the regions in
 the genome where the features in the two files overlap (that is, share at
 least one base pair in common).
+
 ```
 input:
   tuple

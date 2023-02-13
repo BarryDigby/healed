@@ -50,29 +50,6 @@ workflow INPUT_CHECK {
     versions = SAMPLESHEET_CHECK.out.versions // channel: [ versions.yml ]
 }
 
-
-def create_fastq_channel(LinkedHashMap row) {
-
-    def meta = [:]
-    meta.patient      = row.patient
-    meta.assay        = row.assay
-    meta.status       = row.status
-    meta.sample       = row.sample
-    meta.lane         = row.lane
-    meta.id           = "${meta.sample}-${meta.lane}"  // adjust this as necessary, easier to start with more granularity.
-    if (meta.assay == 'rna') { meta.strandedness = row.strandedness }
-    if (!file(row.fastq_1).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
-    }
-    if (!file(row.fastq_2).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
-    }
-
-    fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
-
-    return fastq_meta
-}
-
 // Parse first line of a FASTQ file, return the flowcell id and lane number.
 def flowcellLaneFromFastq(path) {
     // expected format:

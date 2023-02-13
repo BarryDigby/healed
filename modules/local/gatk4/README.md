@@ -4,20 +4,21 @@ GATK4 Nextflow Module
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| gatk_apply_bqsr | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| gatk_base_recalibrator | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| gatk_filter_mutect_calls | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| gatk_haplotypecaller | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| gatk_index_feature_file | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| gatk_mutect | docker://broadinstitute/gatk:4.1.4.1 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
+| workflow                 | container                            | cpus              | memory                            |
+| ------------------------ | ------------------------------------ | ----------------- | --------------------------------- |
+| gatk_apply_bqsr          | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| gatk_base_recalibrator   | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| gatk_filter_mutect_calls | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| gatk_haplotypecaller     | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| gatk_index_feature_file  | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| gatk_mutect              | docker://broadinstitute/gatk:4.1.4.1 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
 
 ## Workflows
 
 `gatk_haplotypecaller`
 
 Runs gatk HaplotypeCaller on a sample
+
 ```
 input:
   tuple
@@ -43,6 +44,7 @@ output:
 `gatk_mutect2_matched`
 
 Runs gatk Mutect2 on paired samples
+
 ```
 input:
   tuple
@@ -77,11 +79,12 @@ output:
     val(dataset) - Dataset
     path("*.vcf") - VCF
     path("*stats*") - VCF Statistics
-````
+```
 
 `gatk_base_recalibrator`
 
 Runs gatk BaseRecalibrator
+
 ```
 input:
   tuple
@@ -111,6 +114,7 @@ output:
 `gatk_apply_bqsr`
 
 Runs gatk ApplyBQSR
+
 ```
 input:
   tuple
@@ -136,6 +140,7 @@ output:
 `gatk_index_feature_file`
 
 Runs gatk IndexFeatureFile
+
 ```
 input:
   path feature_file - Feature File
@@ -150,6 +155,7 @@ output:
 `gatk_filter_mutect_calls`
 
 Runs gatk FilterMutectCalls on VCFs.
+
 ```
 input:
   tuple

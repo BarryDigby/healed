@@ -47,14 +47,14 @@ workflow FASTQ_FASTQC_FASTP {
                             status:key.status,
                         ],
                         read_files]
-                    }.transpose().view()
+                    }.transpose()
             }else{
                 ch_reads_to_map = FASTP.out.reads
             }
 
             ch_versions = ch_versions.mix(FASTP.out.versions)
         } else {
-            ch_reads_to_map = ch_reads_fastp
+            ch_reads_to_map = reads
         }
 
     emit:

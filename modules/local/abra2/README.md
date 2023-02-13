@@ -8,11 +8,11 @@ Manuscript: https://doi.org/10.1093/bioinformatics/btz033
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| abra2 | docker://aphoid/abra2:2.20 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| abra2_cadabra | docker://aphoid/abra2:2.20 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| abra2_rna | docker://aphoid/abra2:2.20 | 4 * task.attempt |  20.GB.plus(12.GB * task.attempt) |
+| workflow      | container                  | cpus              | memory                            |
+| ------------- | -------------------------- | ----------------- | --------------------------------- |
+| abra2         | docker://aphoid/abra2:2.20 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| abra2_cadabra | docker://aphoid/abra2:2.20 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| abra2_rna     | docker://aphoid/abra2:2.20 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
 
 ## Workflows
 
@@ -23,6 +23,7 @@ ABRA is a realigner for next generation sequencing data. It uses localized
 assembly and global realignment to align reads more accurately, thus
 improving downstream analysis (detection of indels and complex variants in
 particular).
+
 ```
 input:
   tuple
@@ -70,6 +71,7 @@ java -jar /abra2.jar --in ${norm_bam},${tumor_bam} --out \${out_norm_bam},\${out
 
 Runs abra2.jar abra.cadabra.Cadabra
 Cadabra is a somatic indel caller that works specifically with ABRA alignments.
+
 ```
 input:
   tuple
@@ -104,6 +106,7 @@ ABRA is a realigner for next generation sequencing data. It uses localized
 assembly and global realignment to align reads more accurately, thus
 improving downstream analysis (detection of indels and complex variants in
 particular).
+
 ```
 input:
   tuple

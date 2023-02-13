@@ -4,18 +4,19 @@ MiXCR Nextflow Module
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| mixcr_align | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| mixcr_assemble | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| mixcr_export | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| mixcr_shotgun | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
+| workflow       | container                                  | cpus              | memory                          |
+| -------------- | ------------------------------------------ | ----------------- | ------------------------------- |
+| mixcr_align    | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| mixcr_assemble | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| mixcr_export   | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| mixcr_shotgun  | docker://benjaminvincentlab/mixcr:3.0.13.1 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 `mixcr_align`
 
 Runs mixcr align
+
 ```
 input:
   tuple
@@ -37,6 +38,7 @@ output:
 `mixcr_assemble`
 
 Runs mixcr assemble
+
 ```
 input:
   tuple
@@ -58,6 +60,7 @@ output:
 `mixcr_export`
 
 Runs mixcr export
+
 ```
 input:
   tuple
@@ -79,6 +82,7 @@ output:
 `mixcr_shotgun`
 
 Runs mixcr analyze shotgun & exportReads
+
 ```
 input:
   tuple

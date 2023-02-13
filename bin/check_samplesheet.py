@@ -85,7 +85,7 @@ class RowChecker:
         """Assert that assay is one of DNA/RNA"""
         if len(row[self._assay_col]) <= 0:
             raise AssertionError("Assay information must be provided")
-        elif row[self._assay_col].lower() not in ['dna', 'rna']:
+        elif row[self._assay_col].lower() not in ["dna", "rna"]:
             raise AssertionError("Assay must be one of 'DNA'/'RNA'.")
         row[self._assay_col] = row[self._assay_col].lower()
 
@@ -95,7 +95,7 @@ class RowChecker:
             raise AssertionError("Status information must be provided")
         elif int(row[self._status_col]) > 1:
             raise AssertionError("Status must be encoded as 0 (normal) or 1 (tumor).")
-        
+
         row[self._status_col] = "tumor" if int(row[self._status_col]) == 1 else "normal"
 
     def _validate_sample(self, row):
@@ -123,12 +123,12 @@ class RowChecker:
 
     def _validate_strandedness(self, row):
         """Assert valid entries for strandedness"""
-        if row[self._assay_col].lower() == 'rna':
+        if row[self._assay_col].lower() == "rna":
             if len(row[self._strandedness_col]) <= 0:
                 raise AssertionError("Strandedness information required for RNA samples")
-            elif row[self._strandedness_col].lower() not in ['auto', 'forward', 'reverse', 'unstranded']:
+            elif row[self._strandedness_col].lower() not in ["auto", "forward", "reverse", "unstranded"]:
                 raise AssertionError("Strandedness must be one of 'auto', 'forward', 'reverse' or 'unstranded'")
-            
+
             row[self._strandedness_col] = row[self._strandedness_col].lower()
 
     def _validate_pair(self, row):
@@ -245,7 +245,7 @@ def check_samplesheet(file_in, file_out):
                 sys.exit(1)
         checker.validate_unique_samples()
     header = list(reader.fieldnames)
-    #header.insert(1, "single_end")
+    # header.insert(1, "single_end")
     # See https://docs.python.org/3.9/library/csv.html#id3 to read up on `newline=""`.
     with file_out.open(mode="w", newline="") as out_handle:
         writer = csv.DictWriter(out_handle, header, delimiter=",")
