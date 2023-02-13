@@ -74,6 +74,7 @@ include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 
 include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
+include { FASTQ_ALIGN_DNA             } from '../subworkflows/local/fastq_align_dna'
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
 include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
 
@@ -93,14 +94,17 @@ workflow HEALED {
     //
     // Parse samplesheet
     //
-    INPUT_CHECK(ch_input)
+    INPUT_CHECK(
+        ch_input
+    )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
-
 
     //
     // FASTQC, FASTP, SPLIT FASTQ
     //
-    FASTQ_FASTQC_FASTP(INPUT_CHECK.out.reads)
+    FASTQ_FASTQC_FASTP(
+        INPUT_CHECK.out.reads
+    )
     ch_versions = ch_versions.mix(FASTQ_FASTQC_FASTP.out.versions)
     ch_reports  = ch_reports.mix(FASTQ_FASTQC_FASTP.out.reports)
 
@@ -126,6 +130,47 @@ workflow HEALED {
         fasta,
         fasta_fai,
         gtf
+    )
+
+    //
+    // SPLIT ASSAYS
+    //
+
+    ch_reads = FASTQ_FASTQC_FASTP.out.reads
+    ch_reads.branch{ meta, reads ->
+        dna: meta.assay == 'dna'; return [meta, reads]
+        rna: meta.assay == 'rna'; return [meta, reads]
+    }.set{ ch_reads_to_map }
+
+    //
+    // FASTQ ALIGN DNA
+    //
+
+    ch_dna_reads_to_map = ch_reads_to_map.dna.map{ meta, reads ->
+        // update ID when no multiple lanes or splitted fastqs
+        // no split_fastq and no multi lane means null meta.size
+        meta.size = params.split_fastq ?: 1
+        new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
+
+        [[
+            data_type:  meta.data_type,
+            id:         new_id,
+            numLanes:   meta.numLanes,
+            patient:    meta.patient,
+            read_group: meta.read_group,
+            sample:     meta.sample,
+            size:       meta.size,
+            status:     meta.status,
+            ],
+        reads]
+    }.view()
+
+    sort_bam = true
+    FASTQ_ALIGN_DNA(
+        // define these as vars once working
+        ch_dna_reads_to_map,
+        PREPARE_GENOME.out.bwa_index,
+        sort_bam
     )
 
     //
