@@ -10,7 +10,9 @@ def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 //WorkflowHealed.initialise(params, log)
 
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.multiqc_config ]
+def checkPathParamList = [
+    params.input, params.multiqc_config,
+    params.bwa_index, params.star_index ]
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters
@@ -24,7 +26,7 @@ if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input sample
 */
 
 gtf                = params.gtf                ? Channel.fromPath(params.gtf)                       : Channel.empty()
-fasta              = params.fasta              ? Channel.fromPath(params.fasta)                     : Channel.empty()
+fasta              = params.fasta              ? Channel.fromPath(params.fasta).collect()                     : Channel.empty()
 
 // Fails when wrongfull extension for intervals file
 //if (params.wes) {
@@ -39,6 +41,8 @@ fasta              = params.fasta              ? Channel.fromPath(params.fasta) 
     PREPARE GENOME STEPS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
+
 
 // set up key value pairs
 def dna_aligners_hashmap = [
@@ -87,10 +91,14 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { FASTQC                      } from '../modules/nf-core/fastqc/main'
-include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
-include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { FASTQC                                         } from '../modules/nf-core/fastqc/main'
+include { MULTIQC                                        } from '../modules/nf-core/multiqc/main'
+include { CUSTOM_DUMPSOFTWAREVERSIONS                    } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { SAMTOOLS_CONVERT as BAM_TO_CRAM                } from '../modules/nf-core/samtools/convert/main'
+include { SAMTOOLS_CONVERT as BAM_TO_CRAM_MAPPING        } from '../modules/nf-core/samtools/convert/main'
 
+include { BAM_MARKDUPLICATES          } from '../subworkflows/local/bam_markduplicates'
+include { BAM_MERGE_INDEX_SAMTOOLS    } from '../subworkflows/local/bam_merge_index_samtools'
 include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
 include { FASTQ_ALIGN_DNA             } from '../subworkflows/local/fastq_align_dna'
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
@@ -137,7 +145,7 @@ workflow HEALED {
     // Collect created files
     fasta_fai                   = PREPARE_INTERVALS.out.fasta_fai
     intervals_bed_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined  // [interval.bed] all intervals in one file
-    //intervals_for_preprocessing = params.wes          ? intervals_bed_combined : []      // For QC during preprocessing, we don't need any intervals (MOSDEPTH doesn't take them for WGS)
+    intervals_for_preprocessing = params.wes          ? intervals_bed_combined : []      // For QC during preprocessing, we don't need any intervals (MOSDEPTH doesn't take them for WGS)
     intervals                   = PREPARE_INTERVALS.out.intervals_bed        // [interval, num_intervals] multiple interval.bed files, divided by useful intervals for scatter/gather
     intervals_bed_gz_tbi        = PREPARE_INTERVALS.out.intervals_bed_gz_tbi
 
@@ -180,7 +188,7 @@ workflow HEALED {
             status:     meta.status,
             ],
         reads]
-    }.view()
+    }
 
     sort_bam = true
     FASTQ_ALIGN_DNA(
@@ -188,6 +196,69 @@ workflow HEALED {
         PREPARE_GENOME.out.bwa_index,
         sort_bam
     )
+
+    //
+    // ALIGNED DNA BAMS
+    //
+
+    // Grouping the bams from the same samples not to stall the workflow
+    ch_bam_mapped = FASTQ_ALIGN_DNA.out.bam.map{ meta, bam ->
+        numLanes = meta.numLanes ?: 1
+        size     = meta.size     ?: 1
+
+        // update ID to be based on the sample name
+        // update data_type
+        // remove no longer necessary fields:
+        //   read_group: Now in the BAM header
+        //     numLanes: Was only needed for mapping
+        //         size: Was only needed for mapping
+        new_meta = [
+                    id:meta.sample,
+                    data_type:"bam",
+                    patient:meta.patient,
+                    sample:meta.sample,
+                    status:meta.status,
+                ]
+
+        // Use groupKey to make sure that the correct group can advance as soon as it is complete
+        // and not stall the workflow until all reads from all channels are mapped
+        [ groupKey(new_meta, numLanes * size), bam]
+    }.groupTuple()
+
+    //
+    // SAVE BAM AS CRAM
+    //
+
+    if (params.save_mapped) {
+
+        // bams are merged (when multiple lanes from the same sample), indexed and then converted to cram
+        BAM_MERGE_INDEX_SAMTOOLS(ch_bam_mapped)
+        BAM_TO_CRAM_MAPPING(BAM_MERGE_INDEX_SAMTOOLS.out.bam_bai, fasta, fasta_fai)
+
+        // Gather used softwares versions
+        ch_versions = ch_versions.mix(BAM_MERGE_INDEX_SAMTOOLS.out.versions)
+        ch_versions = ch_versions.mix(BAM_TO_CRAM_MAPPING.out.versions)
+    }
+
+    //
+    // MARK DUPLICATES
+    //
+
+    ch_for_markduplicates = ch_bam_mapped
+    intervals_for_preprocessing.view()
+    BAM_MARKDUPLICATES(
+        ch_for_markduplicates,
+        fasta,
+        fasta_fai,
+        intervals_for_preprocessing
+    )
+
+    ch_cram_markduplicates = BAM_MARKDUPLICATES.out.cram
+
+    // Gather QC reports
+    ch_reports  = ch_reports.mix(BAM_MARKDUPLICATES.out.qc.collect{meta, report -> report})
+    // Gather used softwares versions
+    ch_versions = ch_versions.mix(BAM_MARKDUPLICATES.out.versions)
 
     //
     // COLLECT VERSIONS
