@@ -37,6 +37,7 @@ workflow INPUT_CHECK {
             meta.numLanes   = numLanes.toInteger()
             meta.read_group = read_group.toString()
             meta.data_type  = 'fastq'
+            meta.size       = 1 // set one here for multiply(), updated by FASTP if needed.
             if (meta.assay == 'rna') { meta.strandedness = row.strandedness }
 
             fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]

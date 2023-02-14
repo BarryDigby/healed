@@ -16,6 +16,7 @@ workflow PREPARE_GENOME {
         fasta                   // channel: [mandatory] fasta
         fasta_fai               // channel: [optional]  fasta_fai
         gtf                     // channel: [mandatory] gtf
+        prepare_tool_indices    // [Array.list]
 
 
     main:
@@ -23,19 +24,23 @@ workflow PREPARE_GENOME {
     ch_versions = Channel.empty()
 
     ch_bwa_index = Channel.empty()
-    if(params.bwa_index) {
-        ch_bwa_index = file(params.bwa_index)
-    } else {
-        ch_bwa_index = BWAMEM1_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index
-        ch_versions = ch_versions.mix(BWAMEM1_INDEX.out.versions)
+    if('bwa' in prepare_tool_indices) {
+        if(params.bwa_index) {
+            ch_bwa_index = file(params.bwa_index)
+        } else {
+            ch_bwa_index = BWAMEM1_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index
+            ch_versions = ch_versions.mix(BWAMEM1_INDEX.out.versions)
+        }
     }
 
     ch_star_index = Channel.empty()
-    if (params.star_index) {
-        ch_star_index = file(params.star_index)
-    } else {
-        ch_star_index = STAR_GENOMEGENERATE( fasta, gtf ).index
-        ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
+    if('star' in prepare_tool_indices) {
+        if (params.star_index) {
+            ch_star_index = file(params.star_index)
+        } else {
+            ch_star_index = STAR_GENOMEGENERATE( fasta, gtf ).index
+            ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
+        }
     }
 
     // Gather versions of all tools used

@@ -36,13 +36,31 @@ fasta              = params.fasta              ? Channel.fromPath(params.fasta) 
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    PREPARE GERNOME STEPS
+    PREPARE GENOME STEPS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-// Append items to list based on user inputs
-//def prepareToolIndices = []
-//if(params.)
 
+// set up key value pairs
+def dna_aligners_hashmap = [
+    'bwa':'abra2,mutect2'
+]
+
+// combine all possible DNA tools that require aligners
+dna_snv_indel_list = params.dna_snv_indel ? params.dna_snv_indel.split(',').collect{ it.trim().toLowerCase() } : []
+dna_cnv_list = params.dna_cnv ? params.cnv.split(',').collect{ it.trim().toLowerCase() } : []
+
+dna_tools = dna_snv_indel_list + dna_cnv_list
+
+def prepareDNAIndex = []
+if(dna_tools) {
+    for ( tool in dna_tools ) {
+        prepareDNAIndex << dna_aligners_hashmap.find{ it.value.contains( tool ) }.key
+    }
+}
+
+prepareDNAIndex.unique { a, b -> a <=> b }
+
+// same for rna, combine the two lists at the end.
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,7 +147,8 @@ workflow HEALED {
     PREPARE_GENOME(
         fasta,
         fasta_fai,
-        gtf
+        gtf,
+        prepareDNAIndex
     )
 
     //
@@ -148,8 +167,6 @@ workflow HEALED {
 
     ch_dna_reads_to_map = ch_reads_to_map.dna.map{ meta, reads ->
         // update ID when no multiple lanes or splitted fastqs
-        // no split_fastq and no multi lane means null meta.size
-        meta.size = params.split_fastq ?: 1
         new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
 
         [[
@@ -167,7 +184,6 @@ workflow HEALED {
 
     sort_bam = true
     FASTQ_ALIGN_DNA(
-        // define these as vars once working
         ch_dna_reads_to_map,
         PREPARE_GENOME.out.bwa_index,
         sort_bam

@@ -18,12 +18,12 @@ workflow FASTQ_ALIGN_DNA {
     ch_versions = Channel.empty()
 
     // Only one of the following should be run
-    BWAMEM1_MEM(ch_reads, ch_map_index.map{ it -> [[id:it[0].baseName], it] }, sort) // If aligner is bwa-mem
+    BWAMEM1_MEM(ch_reads, ch_map_index.map{ it -> [[id:it[0].baseName], it] }, sort)
 
     // Get the bam files from the aligner
     // Only one aligner is run
     ch_bam_mapped = Channel.empty()
-    ch_bam_mapped = ch_bam_mapped.mix(BWAMEM1_MEM.out.bam).view()
+    ch_bam_mapped = ch_bam_mapped.mix(BWAMEM1_MEM.out.bam)
 
     // Gather versions of all tools used
     ch_versions = ch_versions.mix(BWAMEM1_MEM.out.versions.first())

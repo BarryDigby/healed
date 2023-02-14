@@ -36,7 +36,7 @@ workflow FASTQ_FASTQC_FASTP {
                 ch_reads_to_map = FASTP.out.reads.map{ key, reads ->
 
                         read_files = reads.sort{ a,b -> a.getName().tokenize('.')[0] <=> b.getName().tokenize('.')[0] }.collate(2)
-                        [[
+                        [[  assay:key.assay,
                             data_type:key.data_type,
                             id:key.id,
                             numLanes:key.numLanes,
