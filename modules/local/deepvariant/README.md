@@ -4,15 +4,16 @@ DeepVariant Nextflow Module
 
 ## Defautls
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| deepvariant | docker://google/deepvariant:1.1.0 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
+| workflow    | container                         | cpus              | memory                            |
+| ----------- | --------------------------------- | ----------------- | --------------------------------- |
+| deepvariant | docker://google/deepvariant:1.1.0 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
 
 ## Workflows
 
 `deepvariant`
 
 Runs DeepVariant on a sample
+
 ```
 input:
   tuple

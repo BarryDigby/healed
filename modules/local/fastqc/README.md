@@ -4,15 +4,16 @@ FastQC Nextflow Module
 
 ## Defautls
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| fastqc | docker://pegi3s/fastqc:0.11.7 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
+| workflow | container                     | cpus              | memory                            |
+| -------- | ----------------------------- | ----------------- | --------------------------------- |
+| fastqc   | docker://pegi3s/fastqc:0.11.7 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
 
 ## Workflows
 
 `fastqc`
 
 A quality control tool for high throughput sequence data.
+
 ```
 input:
   tuple

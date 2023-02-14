@@ -4,20 +4,21 @@ Picard2 Nextflow Module
 
 ## Defaults
 
-| `| container | cpus | memory |
-| --- | --- | --- | --- |
-| picard_create_seq_dict | docker://broadinstitute/picard:2.21.4 | 2 * task.attempt | 4.GB.plus(4.GB * task.attempt) |
-| picard_mark_duplicates | docker://broadinstitute/picard:2.21.4 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| picard_collect_insert_size_metrics | docker://broadinstitute/picard:2.21.4 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| picard_collect_rna_seq_metrics | docker://broadinstitute/picard:2.21.4 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| picard_collect_wgs_metrics_nzc | docker://broadinstitute/picard:2.21.4 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| picard_collect_vcf_metrics | docker://broadinstitute/picard:2.21.4 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
+| `                                  | container                             | cpus              | memory                          |
+| ---------------------------------- | ------------------------------------- | ----------------- | ------------------------------- |
+| picard_create_seq_dict             | docker://broadinstitute/picard:2.21.4 | 2 \* task.attempt | 4.GB.plus(4.GB \* task.attempt) |
+| picard_mark_duplicates             | docker://broadinstitute/picard:2.21.4 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| picard_collect_insert_size_metrics | docker://broadinstitute/picard:2.21.4 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| picard_collect_rna_seq_metrics     | docker://broadinstitute/picard:2.21.4 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| picard_collect_wgs_metrics_nzc     | docker://broadinstitute/picard:2.21.4 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| picard_collect_vcf_metrics         | docker://broadinstitute/picard:2.21.4 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 `picard_create_seq_dict`
 
 Runs CreateSequenceDictionary
+
 ```
 input:
   path(fa) - Reference FASTA
@@ -32,6 +33,7 @@ output:
 `picard_mark_duplicates`
 
 Runs MarkDuplicates
+
 ```
 input:
   path aln - Alignment Files
@@ -46,6 +48,7 @@ output:
 `picard_collect_insert_size_metrics`
 
 Runs CollectInsertSizeMetrics
+
 ```
 input:
   path aln - Alignment Files
@@ -60,6 +63,7 @@ output:
 `picard_collect_rna_seq_metrics`
 
 Runs CollectRnaSeqMetrics
+
 ```
 input:
 output:
@@ -74,6 +78,7 @@ that pass base- and mapping- quality filters as well as coverage
 as the maximum read depths (coverage cap) are user defined. This extends
 CollectWgsMetrics by including metrics related only to siteswith non-zero
 (>0) coverage.
+
 ```
 input:
 output:
@@ -83,6 +88,7 @@ output:
 
 Collects per-sample and aggregate (spanning all samples) metrics from the
 provided VCF file.
+
 ```
 input:
 output:

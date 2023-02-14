@@ -1,0 +1,5 @@
+patient,assay,status,sample,lane,fastq_1,fastq_2,strandedness
+patient1,DNA,0,normal_sample,lane_1,test_L001_1.fastq.gz,test_L001_2.fastq.gz,
+patient1,DNA,1,tumor_sample,lane_1,test1_L001_1.fastq.gz,test1_L001_2.fastq.gz,
+patient1,RNA,0,normal_sample,lane_1,test2_L001_1.fastq.gz,test2_L001_2.fastq.gz,forward
+patient1,RNA,1,tumor_sample,lane_1,test3_L001_1.fastq.gz,test3_L001_2.fastq.gz,forward

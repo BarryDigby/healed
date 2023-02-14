@@ -4,17 +4,18 @@ bwa Nextflow Module
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| bwa_index | docker://fredhutch/bwa:0.7.17 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| bwa_mem | docker://fredhutch/bwa:0.7.17 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
-| bwa_mem_samtools_view | docker://fredhutch/bwa:0.7.17 | 4 * task.attempt | 20.GB.plus(12.GB * task.attempt) |
+| workflow              | container                     | cpus              | memory                            |
+| --------------------- | ----------------------------- | ----------------- | --------------------------------- |
+| bwa_index             | docker://fredhutch/bwa:0.7.17 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| bwa_mem               | docker://fredhutch/bwa:0.7.17 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
+| bwa_mem_samtools_view | docker://fredhutch/bwa:0.7.17 | 4 \* task.attempt | 20.GB.plus(12.GB \* task.attempt) |
 
 ## Workflows
 
 `bwa_index`
 
 Runs bwa index
+
 ```
 input:
   path fa - Reference FASTA
@@ -31,6 +32,7 @@ output:
 `bwa_mem`
 
 Runs bwa mem
+
 ```
 input:
   tuple
@@ -56,7 +58,8 @@ output:
 
 Runs bwa mem | samtools view -bS
 
-NOTE: This is *not* compatible with AWS Batch.
+NOTE: This is _not_ compatible with AWS Batch.
+
 ```
 input:
   tuple

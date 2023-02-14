@@ -13,12 +13,12 @@ before_script:
   - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
   - bash Miniconda3-latest-Linux-x86_64.sh -b -p miniconda3 -f
   - source miniconda3/bin/activate
-  - conda install -c anaconda pytest 
-  - conda install -c conda-forge singularity 
+  - conda install -c anaconda pytest
+  - conda install -c conda-forge singularity
 
 stages:
- - Static Analysis
- - Test
+  - Static Analysis
+  - Test
 
 #reqs:
 #  stage: .pre
@@ -28,5 +28,5 @@ stages:
 pytest:
   stage: Test
   script:
-  - cd tests
-  - python3 -m pytest
+    - cd tests
+    - python3 -m pytest

@@ -4,17 +4,18 @@ HTSlib Nextflow Module
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| htslib_bgzip | docker://tedbrookings/htslib:1.9 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| htslib_bgzip_somatic | docker://tedbrookings/htslib:1.9 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| htslib_tabix | docker://tedbrookings/htslib:1.9 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
+| workflow             | container                        | cpus              | memory                          |
+| -------------------- | -------------------------------- | ----------------- | ------------------------------- |
+| htslib_bgzip         | docker://tedbrookings/htslib:1.9 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| htslib_bgzip_somatic | docker://tedbrookings/htslib:1.9 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| htslib_tabix         | docker://tedbrookings/htslib:1.9 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 `htslib_bgzip_somatic`
 
 Runs bgzip on somatically tagged channels.
+
 ```
 input:
   path inf -  Input File
@@ -29,6 +30,7 @@ output:
 `htslib_bgzip`
 
 Runs bgzip
+
 ```
 input:
   path inf -  Input File
@@ -43,6 +45,7 @@ output:
 `htslib_tabix`
 
 Runs tabix
+
 ```
 input:
   path inf -  Input File

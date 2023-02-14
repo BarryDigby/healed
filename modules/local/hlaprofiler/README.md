@@ -4,16 +4,17 @@ HLAProfiler Nextflow Module
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| hlaprofiler_predict | docker://benjaminvincentlab/hlaprofiler:1.10.2 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
+| workflow            | container                                      | cpus              | memory                          |
+| ------------------- | ---------------------------------------------- | ----------------- | ------------------------------- |
+| hlaprofiler_predict | docker://benjaminvincentlab/hlaprofiler:1.10.2 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 `hlaprofiler_predict`
 
- Runs HLAProfiler.pl predict
- Uses the database included with the Docker image.
+Runs HLAProfiler.pl predict
+Uses the database included with the Docker image.
+
 ```
 input:
   tuple

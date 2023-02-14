@@ -6,24 +6,25 @@ Website: http://samtools.github.io/bcftools/bcftools.html
 
 ## Defaults
 
-| workflow | container | cpus | memory |
-| --- | --- | --- | --- |
-| bcftools_consensus | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_filter | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_index | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_index_somatic | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_isec | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_merge | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_norm | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_query | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_stats | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
-| bcftools_stats_somatic | docker://lifebitai/bcftools:1.10.2 | 2 * task.attempt | 6.GB.plus(4.GB * task.attempt) |
+| workflow               | container                          | cpus              | memory                          |
+| ---------------------- | ---------------------------------- | ----------------- | ------------------------------- |
+| bcftools_consensus     | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_filter        | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_index         | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_index_somatic | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_isec          | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_merge         | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_norm          | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_query         | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_stats         | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
+| bcftools_stats_somatic | docker://lifebitai/bcftools:1.10.2 | 2 \* task.attempt | 6.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 # bcftools_consensus
 
 Create consensus sequence by applying VCF variants to a reference fasta file.
+
 ```
 input:
   tuple
@@ -51,6 +52,7 @@ bcftools consensus ${parstr} -f ${fa} ${vcf} > ${dataset}-${pat_name}-${norm_pre
 # bcftools_filter
 
 Apply fixed-threshold filters.
+
 ```
 input:
   tuple
@@ -77,6 +79,7 @@ bcftools filter ${parstr} -o \${ORIG%.vcf*}.bfilt.vcf ${vcf}
 # bcftools_index
 
 Creates index for bgzip compressed VCF/BCF files for random access.
+
 ```
 input:
   tuple
@@ -103,6 +106,7 @@ bcftools index ${vcf} ${parstr}
 Creates index for bgzip compressed VCF/BCF files for random access.
 Intended for uses with pair tagged channels (e.g. have both norm_prefix and
 tumor_prefix elements).
+
 ```
 input:
   tuple
@@ -129,6 +133,7 @@ bcftools index ${vcf} ${parstr}
 # bcftools_isec
 
 Creates intersections, unions and complements of VCF files.
+
 ```
 input:
   tuple => emit: vcfs_w_csis
@@ -155,6 +160,7 @@ VCFS=\$(ls *vcf.gz); bcftools isec \${VCFS} -o ${dataset}-${pat_name}-${norm_pre
 # bcftools_merge
 
 Merge multiple VCF/BCF files from non-overlapping sample sets to create one multi-sample file.
+
 ```
 input:
   tuple
@@ -184,6 +190,7 @@ bcftools merge \${VCFS} -o ${dataset}-${pat_name}-${norm_prefix}_${tumor_prefix}
 Left-align and normalize indels, check if REF alleles match the reference,
 split multiallelic sites into multiple rows; recover multiallelics from
 multiple rows.
+
 ```
 input:
   tuple
@@ -212,6 +219,7 @@ bcftools norm ${parstr} -f ${fa} ${vcf} > \${BNAME%.vcf*}.norm.vcf
 # bcftools_query
 
 Extracts fields from VCF or BCF files and outputs them in user-defined format.
+
 ```
 input:
   tuple
@@ -237,6 +245,7 @@ bcftools query ${parstr} ${vcf} > ${dataset}-${pat_name}-${norm_prefix}_${tumor_
 # bcftools_stats_somatic
 
 Parses VCF or BCF and produces text file stats which is suitable for machine processing.
+
 ```
 input:
   tuple
@@ -262,6 +271,7 @@ bcftools stats ${parstr} ${vcf} > \${BNAME%.vcf*}.vcf_stats
 # bcftools_stats
 
 Parses VCF or BCF and produces text file stats which is suitable for machine processing.
+
 ```
 input:
   tuple

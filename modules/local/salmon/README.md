@@ -4,17 +4,18 @@ Salmon Nextflow Module
 
 ## Defaults
 
-| `| container | cpus | memory |
-| --- | --- | --- | --- |
-| salmon_index | docker://combinelab/salmon:1.1.0 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| salmon_map_quant | docker://combinelab/salmon:1.1.0 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
-| salmon_aln_quant | docker://combinelab/salmon:1.1.0 | 4 * task.attempt | 8.GB.plus(4.GB * task.attempt) |
+| `                | container                        | cpus              | memory                          |
+| ---------------- | -------------------------------- | ----------------- | ------------------------------- |
+| salmon_index     | docker://combinelab/salmon:1.1.0 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| salmon_map_quant | docker://combinelab/salmon:1.1.0 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
+| salmon_aln_quant | docker://combinelab/salmon:1.1.0 | 4 \* task.attempt | 8.GB.plus(4.GB \* task.attempt) |
 
 ## Workflows
 
 `salmon_index`
 
 Runs salmon index command
+
 ```
 input:
   path fa - Reference FASTA
@@ -29,6 +30,7 @@ output:
 `salmon_map_quant`
 
 Runs salmon quant (for quantifying from FASTQs)
+
 ```
 input:
   tuple
@@ -53,6 +55,7 @@ output:
 `salmon_aln_quant`
 
 Runs salmon quant (for quantifying from alignments)
+
 ```
 input:
   tuple

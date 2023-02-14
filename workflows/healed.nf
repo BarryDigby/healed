@@ -7,15 +7,60 @@
 def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 
 // Validate input parameters
-WorkflowHealed.initialise(params, log)
+//WorkflowHealed.initialise(params, log)
 
-// TODO nf-core: Add all file path parameters for the pipeline to the list below
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.multiqc_config, params.fasta ]
+def checkPathParamList = [ params.input, params.multiqc_config ]
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters
 if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    STAGE INPUTS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+gtf                = params.gtf                ? Channel.fromPath(params.gtf)                       : Channel.empty()
+fasta              = params.fasta              ? Channel.fromPath(params.fasta)                     : Channel.empty()
+
+// Fails when wrongfull extension for intervals file
+//if (params.wes) {
+//    if (params.intervals && !params.intervals.endsWith("bed")) exit 1, "Target file specified with `--intervals` must be in BED format for targeted data"
+//    else log.warn("Intervals file was provided without parameter `--wes`: Pipeline will assume this is Whole-Genome-Sequencing data.")
+//} else if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.endsWith("list")) exit 1, "Intervals file must end with .bed, .list, or .interval_list"
+
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    PREPARE GENOME STEPS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+// set up key value pairs
+def dna_aligners_hashmap = [
+    'bwa':'abra2,mutect2'
+]
+
+// combine all possible DNA tools that require aligners
+dna_snv_indel_list = params.dna_snv_indel ? params.dna_snv_indel.split(',').collect{ it.trim().toLowerCase() } : []
+dna_cnv_list = params.dna_cnv ? params.cnv.split(',').collect{ it.trim().toLowerCase() } : []
+
+dna_tools = dna_snv_indel_list + dna_cnv_list
+
+def prepareDNAIndex = []
+if(dna_tools) {
+    for ( tool in dna_tools ) {
+        prepareDNAIndex << dna_aligners_hashmap.find{ it.value.contains( tool ) }.key
+    }
+}
+
+prepareDNAIndex.unique { a, b -> a <=> b }
+
+// same for rna, combine the two lists at the end.
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -34,9 +79,6 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
-// SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
-//
 include { INPUT_CHECK } from '../subworkflows/local/input_check'
 
 /*
@@ -45,12 +87,14 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
-// MODULE: Installed directly from nf-core/modules
-//
 include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+
+include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
+include { FASTQ_ALIGN_DNA             } from '../subworkflows/local/fastq_align_dna'
+include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
+include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,29 +102,96 @@ include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-// Info required for completion email and summary
 def multiqc_report = []
 
 workflow HEALED {
 
     ch_versions = Channel.empty()
+    ch_reports  = Channel.empty()
 
     //
-    // SUBWORKFLOW: Read in samplesheet, validate and stage input files
+    // Parse samplesheet
     //
-    INPUT_CHECK (
+    INPUT_CHECK(
         ch_input
     )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
     //
-    // MODULE: Run FastQC
+    // FASTQC, FASTP, SPLIT FASTQ
     //
-    FASTQC (
+    FASTQ_FASTQC_FASTP(
         INPUT_CHECK.out.reads
     )
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    ch_versions = ch_versions.mix(FASTQ_FASTQC_FASTP.out.versions)
+    ch_reports  = ch_reports.mix(FASTQ_FASTQC_FASTP.out.reports)
 
+    //
+    // PREPARE INTERVALS
+    //
+    PREPARE_INTERVALS(
+        fasta
+    )
+    ch_versions = ch_versions.mix(PREPARE_INTERVALS.out.versions)
+
+    // Collect created files
+    fasta_fai                   = PREPARE_INTERVALS.out.fasta_fai
+    intervals_bed_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined  // [interval.bed] all intervals in one file
+    //intervals_for_preprocessing = params.wes          ? intervals_bed_combined : []      // For QC during preprocessing, we don't need any intervals (MOSDEPTH doesn't take them for WGS)
+    intervals                   = PREPARE_INTERVALS.out.intervals_bed        // [interval, num_intervals] multiple interval.bed files, divided by useful intervals for scatter/gather
+    intervals_bed_gz_tbi        = PREPARE_INTERVALS.out.intervals_bed_gz_tbi
+
+    //
+    // PREPARE GENOME
+    //
+    PREPARE_GENOME(
+        fasta,
+        fasta_fai,
+        gtf,
+        prepareDNAIndex
+    )
+
+    //
+    // SPLIT ASSAYS
+    //
+
+    ch_reads = FASTQ_FASTQC_FASTP.out.reads
+    ch_reads.branch{ meta, reads ->
+        dna: meta.assay == 'dna'; return [meta, reads]
+        rna: meta.assay == 'rna'; return [meta, reads]
+    }.set{ ch_reads_to_map }
+
+    //
+    // FASTQ ALIGN DNA
+    //
+
+    ch_dna_reads_to_map = ch_reads_to_map.dna.map{ meta, reads ->
+        // update ID when no multiple lanes or splitted fastqs
+        new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
+
+        [[
+            data_type:  meta.data_type,
+            id:         new_id,
+            numLanes:   meta.numLanes,
+            patient:    meta.patient,
+            read_group: meta.read_group,
+            sample:     meta.sample,
+            size:       meta.size,
+            status:     meta.status,
+            ],
+        reads]
+    }.view()
+
+    sort_bam = true
+    FASTQ_ALIGN_DNA(
+        ch_dna_reads_to_map,
+        PREPARE_GENOME.out.bwa_index,
+        sort_bam
+    )
+
+    //
+    // COLLECT VERSIONS
+    //
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
@@ -98,7 +209,6 @@ workflow HEALED {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect(),
