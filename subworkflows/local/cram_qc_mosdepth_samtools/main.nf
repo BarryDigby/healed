@@ -20,6 +20,7 @@ workflow CRAM_QC_MOSDEPTH_SAMTOOLS {
 
     // Reports run on cram
     SAMTOOLS_STATS(cram, fasta)
+    // MOSDEPTH wants tuples for all inputs
     MOSDEPTH(cram, intervals_bed_combined.map{ it -> [[id:it.baseName], it]}, fasta.map{ it -> [[id:it.baseName], it]})
 
     // Gather all reports generated

@@ -91,10 +91,12 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+include { ABRA2                                          } from '../modules/local/abra2/abra2/main'
 include { FASTQC                                         } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                                        } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS                    } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { SAMTOOLS_CONVERT as BAM_TO_CRAM                } from '../modules/nf-core/samtools/convert/main'
+include { SAMTOOLS_CONVERT as CRAM_TO_BAM                } from '../modules/nf-core/samtools/convert/main'
 include { SAMTOOLS_CONVERT as BAM_TO_CRAM_MAPPING        } from '../modules/nf-core/samtools/convert/main'
 
 include { BAM_MARKDUPLICATES          } from '../subworkflows/local/bam_markduplicates'
@@ -253,12 +255,47 @@ workflow HEALED {
         intervals_for_preprocessing
     )
 
-    ch_cram_markduplicates = BAM_MARKDUPLICATES.out.cram
+    ch_cram_markduplicates = BAM_MARKDUPLICATES.out.cram.view()
 
     // Gather QC reports
     ch_reports  = ch_reports.mix(BAM_MARKDUPLICATES.out.qc.collect{meta, report -> report})
     // Gather used softwares versions
     ch_versions = ch_versions.mix(BAM_MARKDUPLICATES.out.versions)
+
+    //
+    // ABRA2 REALIGNMENT
+    //
+
+    if(params.abra2_realignment || params.dna_snv_indel.contains('abra2')) {
+
+        CRAM_TO_BAM(
+            ch_cram_markduplicates,
+            fasta,
+            fasta_fai
+        )
+        ch_versions = ch_versions.mix(CRAM_TO_BAM.out.versions)
+
+        CRAM_TO_BAM.out.alignment_index.branch{ meta, cram, crai ->
+                                                tumor: meta.status == 'tumor'; return [meta, cram, crai]
+                                                normal: meta.status =='normal'; return [meta, cram, crai]
+                                            }.set{ ch_bam_markduplicates_branched }
+
+        fuck_my_workflow = Channel.of([[], [], []]) // this works but you lose meta info. sure what are ya supposed to do there.
+
+
+        ABRA2(
+            fuck_my_workflow,
+            ch_bam_markduplicates_branched.tumor,
+            fasta,
+            gtf,
+            [],
+            intervals_for_preprocessing,
+            false
+        )
+        ch_versions = ch_versions.mix(ABRA2.out.versions)
+        ch_abra2_bams = ABRA2.out.abra2_normal.mix(ABRA2.out.abra2_tumor).view()
+
+    }
 
     //
     // COLLECT VERSIONS
@@ -280,6 +317,7 @@ workflow HEALED {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
+    //ch_multiqc_files = ch_multiqc_files.mix(ch_reports.collect().ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect(),

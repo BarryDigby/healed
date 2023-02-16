@@ -10,7 +10,7 @@ include { BWA_MEM as BWAMEM1_MEM } from '../../../modules/nf-core/bwa/mem/main'
 workflow FASTQ_ALIGN_DNA {
     take:
         ch_reads     // channel: [mandatory] meta, reads
-        ch_map_index // channel: [mandatory] mapping index
+        ch_map_index // channel: [mandatory] mapping index (tuple)
         sort         // boolean: [mandatory] true -> sort, false -> don't sort
 
     main:
@@ -18,7 +18,7 @@ workflow FASTQ_ALIGN_DNA {
     ch_versions = Channel.empty()
 
     // Only one of the following should be run
-    BWAMEM1_MEM(ch_reads, ch_map_index.map{ it -> [[id:it[0].baseName], it] }, sort)
+    BWAMEM1_MEM(ch_reads, ch_map_index, sort)
 
     // Get the bam files from the aligner
     // Only one aligner is run

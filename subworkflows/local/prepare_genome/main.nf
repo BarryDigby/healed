@@ -26,9 +26,10 @@ workflow PREPARE_GENOME {
     ch_bwa_index = Channel.empty()
     if('bwa' in prepare_tool_indices) {
         if(params.bwa_index) {
-            ch_bwa_index = file(params.bwa_index)
+            ch_bwa_index = file(params.bwa_index) // not a tuple
+            ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]}
         } else {
-            ch_bwa_index = BWAMEM1_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index
+            ch_bwa_index = BWAMEM1_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index // is a tuple
             ch_versions = ch_versions.mix(BWAMEM1_INDEX.out.versions)
         }
     }
