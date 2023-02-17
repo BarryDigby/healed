@@ -64,7 +64,28 @@ if(dna_tools) {
 
 prepareDNAIndex.unique { a, b -> a <=> b }
 
-// same for rna, combine the two lists at the end.
+def rna_aligners_hashmap = [
+    'star':'salmon,star_fusion'
+]
+
+// combine all possible DNA tools that require aligners
+rna_quant = params.rna_quant ? params.rna_quant.split(',').collect{ it.trim().toLowerCase() } : []
+rna_fusion = params.rna_fusion ? params.rna_fusion.split(',').collect{ it.trim().toLowerCase() } : []
+
+rna_tools = rna_quant + rna_fusion
+
+def prepareRNAIndex = []
+if(rna_tools) {
+    for ( tool in rna_tools ) {
+        prepareRNAIndex << rna_aligners_hashmap.find{ it.value.contains( tool ) }.key
+    }
+}
+
+prepareRNAIndex.unique { a, b -> a <=> b }
+
+// combine both lists to trigger genome index generation
+
+prepareGenomeIndex = prepareRNAIndex + prepareDNAIndex
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,6 +124,7 @@ include { BAM_MARKDUPLICATES          } from '../subworkflows/local/bam_markdupl
 include { BAM_MERGE_INDEX_SAMTOOLS    } from '../subworkflows/local/bam_merge_index_samtools'
 include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
 include { FASTQ_ALIGN_DNA             } from '../subworkflows/local/fastq_align_dna'
+include { FASTQ_ALIGN_RNA             } from '../subworkflows/local/fastq_align_rna'
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
 include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
 
@@ -158,7 +180,7 @@ workflow HEALED {
         fasta,
         fasta_fai,
         gtf,
-        prepareDNAIndex
+        prepareGenomeIndex
     )
 
     //
@@ -194,10 +216,43 @@ workflow HEALED {
 
     sort_bam = true
     FASTQ_ALIGN_DNA(
-        ch_dna_reads_to_map,
-        PREPARE_GENOME.out.bwa_index,
-        sort_bam
+        ch_dna_reads_to_map,          // [channel] tuple
+        PREPARE_GENOME.out.bwa_index, // [channel] tuple
+        sort_bam                      // [boolean] value
     )
+
+    //
+    // FASTQ_ALIGN_RNA
+    //
+
+    ch_rna_reads_to_map = ch_reads_to_map.rna.map{ meta, reads ->
+        // update ID when no multiple lanes or splitted fastqs
+        new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
+
+        [[
+            data_type:     meta.data_type,
+            id:            new_id,
+            numLanes:      meta.numLanes,
+            patient:       meta.patient,
+            read_group:    meta.read_group,
+            sample:        meta.sample,
+            size:          meta.size,
+            status:        meta.status,
+            strandedness = meta.strandedness
+            ],
+        reads]
+    }
+
+    FASTQ_ALIGN_RNA(
+        ch_rna_reads_to_map,           // [channel] tuple
+        PREPARE_GENOME.out.star_index, // [channel] path
+        gtf                            // [channel] path
+    )
+
+    FASTQ_ALIGN_RNA.out.junctions.view()
+    FASTQ_ALIGN_RNA.out.bam.view()
+
+    // could be a good idea to tag meta with [[downstream:'star_fusion']] etc to explicitly set DS tools.
 
     //
     // ALIGNED DNA BAMS
