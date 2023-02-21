@@ -45,6 +45,11 @@
                         "git_sha": "c8e35eb2055c099720a75538d1b8adb3fb5a464c",
                         "installed_by": ["modules"]
                     },
+                    "gridss/gridss": {
+                        "branch": "master",
+                        "git_sha": "f159f90b4bfa06b64bf86650fda0eb441dce4b77",
+                        "installed_by": ["modules"]
+                    },
                     "mosdepth": {
                         "branch": "master",
                         "git_sha": "def5f182583df0c20f43ec3d4355e8ebd341aaa9",

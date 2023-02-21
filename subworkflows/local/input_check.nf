@@ -12,7 +12,7 @@ workflow INPUT_CHECK {
     SAMPLESHEET_CHECK ( samplesheet )
         .csv
         .splitCsv ( header:true, sep:',' )
-        .map{ row -> // badass sarek implementation
+        .map{ row -> // sarek implementation
             [[row.patient.toString(), row.sample.toString()], row]
         }.groupTuple()
         .map{ meta, rows ->

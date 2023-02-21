@@ -2,14 +2,17 @@
 // PREPARE GENOME
 //
 
-// Variant Calling
+// DNA
 
-include { BWA_INDEX as BWAMEM1_INDEX             } from '../../../modules/nf-core/bwa/index/main'
+include { BWA_INDEX                                       } from '../../../modules/nf-core/bwa/index/main'
 
 // RNA-Seq
+include { STAR_GENOMEGENERATE                             } from '../../../modules/nf-core/star/genomegenerate/main'
+include { RSEM_PREPAREREFERENCE as MAKE_TRANSCRIPTS_FASTA } from '../../../modules/nf-core/rsem/preparereference/main'
+include { GTF_GENE_FILTER                                 } from '../../../modules/local/gtf_gene_filter/main'
 
-include { STAR_GENOMEGENERATE                    } from '../../../modules/nf-core/star/genomegenerate/main'
-
+//RNA Fusion
+include { CTAT_GENOME_LIB                                 } from '../../../modules/local/ctat_genome/main'
 
 workflow PREPARE_GENOME {
     take:
@@ -27,10 +30,10 @@ workflow PREPARE_GENOME {
     if('bwa' in prepare_tool_indices) {
         if(params.bwa_index) {
             ch_bwa_index = file(params.bwa_index) // not a tuple
-            ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]}
+            ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]} // make a tuple
         } else {
-            ch_bwa_index = BWAMEM1_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index // is a tuple
-            ch_versions = ch_versions.mix(BWAMEM1_INDEX.out.versions)
+            ch_bwa_index = BWA_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index // is a tuple
+            ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
         }
     }
 
@@ -42,6 +45,30 @@ workflow PREPARE_GENOME {
             ch_star_index = STAR_GENOMEGENERATE( fasta, gtf ).index
             ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
         }
+    }
+
+    ch_ctat_genome_lib = Channel.empty()
+    ch_ctat_genome_gtf = Channel.empty()
+    if('star_fusion' in prepare_tool_indices) {
+        if (params.ctat_genome_lib) {
+            ch_ctat_genome_lib = file(params.ctat_genome_lib)
+            ch_ctat_genome_gtf = file("${params.ctat_genome_lib}/ref_annot.gtf")
+        } else {
+            CTAT_GENOME_LIB()
+            ch_ctat_genome_lib = CTAT_GENOME_LIB.out.reference
+            ch_ctat_genome_gtf = CTAT_GENOME_LIB.out.chrgtf
+        }
+    }
+
+    // TODO: unsure yet what tools depend on this, update if else when you know.
+    ch_transcript_fasta = Channel.empty()
+    if(params.transcript_fasta){
+        ch_transcript_fasta = file(params.transcript_fasta)
+    } else {
+        ch_filter_gtf       = GTF_GENE_FILTER ( fasta, gtf ).gtf
+        ch_transcript_fasta = MAKE_TRANSCRIPTS_FASTA ( fasta, ch_filter_gtf ).transcript_fasta
+        ch_versions         = ch_versions.mix(GTF_GENE_FILTER.out.versions)
+        ch_versions         = ch_versions.mix(MAKE_TRANSCRIPTS_FASTA.out.versions)
     }
 
     // Gather versions of all tools used
@@ -76,5 +103,6 @@ workflow PREPARE_GENOME {
         gc_file                          = gc_file
         rt_file                          = rt_file */
         star_index                       = ch_star_index
+        transcript_fasta                 = ch_transcript_fasta
         versions                         = ch_versions                                                         // channel: [ versions.yml ]
 }

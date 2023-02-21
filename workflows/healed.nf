@@ -26,13 +26,13 @@ if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input sample
 */
 
 gtf                = params.gtf                ? Channel.fromPath(params.gtf)                       : Channel.empty()
-fasta              = params.fasta              ? Channel.fromPath(params.fasta).collect()                     : Channel.empty()
+fasta              = params.fasta              ? Channel.fromPath(params.fasta).collect()           : Channel.empty()
 
 // Fails when wrongfull extension for intervals file
-//if (params.wes) {
-//    if (params.intervals && !params.intervals.endsWith("bed")) exit 1, "Target file specified with `--intervals` must be in BED format for targeted data"
-//    else log.warn("Intervals file was provided without parameter `--wes`: Pipeline will assume this is Whole-Genome-Sequencing data.")
-//} else if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.endsWith("list")) exit 1, "Intervals file must end with .bed, .list, or .interval_list"
+if (params.wes) {
+    if (params.intervals && !params.intervals.endsWith("bed")) exit 1, "Target file specified with `--intervals` must be in BED format for targeted data"
+    else log.warn("Intervals file was provided without parameter `--wes`: Pipeline will assume this is Whole-Genome-Sequencing data.")
+} else if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.endsWith("list")) exit 1, "Intervals file must end with .bed, .list, or .interval_list"
 
 
 
@@ -42,7 +42,7 @@ fasta              = params.fasta              ? Channel.fromPath(params.fasta).
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-
+// Enforce that the tool names are valid prior to this i.e json schema, passing an incorrect one on its own returns 'Cannot get property 'key' on null object'
 
 // set up key value pairs
 def dna_aligners_hashmap = [
@@ -51,7 +51,7 @@ def dna_aligners_hashmap = [
 
 // combine all possible DNA tools that require aligners
 dna_snv_indel_list = params.dna_snv_indel ? params.dna_snv_indel.split(',').collect{ it.trim().toLowerCase() } : []
-dna_cnv_list = params.dna_cnv ? params.cnv.split(',').collect{ it.trim().toLowerCase() } : []
+dna_cnv_list = params.dna_cnv ? params.dna_cnv.split(',').collect{ it.trim().toLowerCase() } : []
 
 dna_tools = dna_snv_indel_list + dna_cnv_list
 
@@ -65,14 +65,15 @@ if(dna_tools) {
 prepareDNAIndex.unique { a, b -> a <=> b }
 
 def rna_aligners_hashmap = [
-    'star':'salmon,star_fusion'
+    'star':'star_salmon',
+    'star_fusion':'star_fusion'
 ]
 
 // combine all possible DNA tools that require aligners
-rna_quant = params.rna_quant ? params.rna_quant.split(',').collect{ it.trim().toLowerCase() } : []
-rna_fusion = params.rna_fusion ? params.rna_fusion.split(',').collect{ it.trim().toLowerCase() } : []
+rna_quant_list = params.rna_quant ? params.rna_quant.split(',').collect{ it.trim().toLowerCase() } : []
+rna_fusion_list = params.rna_fusion ? params.rna_fusion.split(',').collect{ it.trim().toLowerCase() } : []
 
-rna_tools = rna_quant + rna_fusion
+rna_tools = rna_quant_list + rna_fusion_list
 
 def prepareRNAIndex = []
 if(rna_tools) {
@@ -112,21 +113,20 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { ABRA2                                          } from '../modules/local/abra2/abra2/main'
 include { FASTQC                                         } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                                        } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS                    } from '../modules/nf-core/custom/dumpsoftwareversions/main'
-include { SAMTOOLS_CONVERT as BAM_TO_CRAM                } from '../modules/nf-core/samtools/convert/main'
-include { SAMTOOLS_CONVERT as CRAM_TO_BAM                } from '../modules/nf-core/samtools/convert/main'
-include { SAMTOOLS_CONVERT as BAM_TO_CRAM_MAPPING        } from '../modules/nf-core/samtools/convert/main'
 
+
+// Use subworkflows for everything!
+include { BAM_ABRA2                   } from '../subworkflows/local/bam_abra2'
 include { BAM_MARKDUPLICATES          } from '../subworkflows/local/bam_markduplicates'
-include { BAM_MERGE_INDEX_SAMTOOLS    } from '../subworkflows/local/bam_merge_index_samtools'
 include { FASTQ_FASTQC_FASTP          } from '../subworkflows/local/fastq_fastqc_fastp'
 include { FASTQ_ALIGN_DNA             } from '../subworkflows/local/fastq_align_dna'
 include { FASTQ_ALIGN_RNA             } from '../subworkflows/local/fastq_align_rna'
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
 include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
+//include { STRUCTURAL_VARIATION        } from '../subworkflows/local/structural_variation'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -141,41 +141,183 @@ workflow HEALED {
     ch_versions = Channel.empty()
     ch_reports  = Channel.empty()
 
-    //
-    // Parse samplesheet
-    //
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                PARSE INPUT SAMPLESHEET
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Parse the input samplesheet.csv file to collect metadata, converting to channel con-
+    taining metadata and reads. Sample output given below.
+
+    Subworkflow, module files:
+    - subworkflows/local/input_check
+        - modules/local/samplesheet_check
+
+    Parameters                                                               Explanation
+    - params.fasta                                                             RG header
+    - params.seq_center                                                        RG header
+    - params.seq_platform                                                      RG header
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
     INPUT_CHECK(
         ch_input
     )
+
+    // Gather versions
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
-    //
-    // FASTQC, FASTP, SPLIT FASTQ
-    //
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    INPUT_CHECK.out.reads.view()
+    [[patient:HCC1395, assay:dna, status:normal, sample:HCC1395N_T1, lane:1, id:HCC1395N_T1-1, numLanes:1, read_group:"@RG\tID:null.HCC1395N_T1.1\tPU:1\tSM:HCC1395_HCC1395N_T1\tLB:HCC1395N_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1], [/data/github/healed/dev_data/HCC1395N_R1.fastq.gz, /data/github/healed/dev_data/HCC1395N_R2.fastq.gz]]
+    [[patient:HCC1395, assay:dna, status:tumor,  sample:HCC1395T_T1, lane:1, id:HCC1395T_T1-1, numLanes:1, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1], [/data/github/healed/dev_data/HCC1395T_R1.fastq.gz, /data/github/healed/dev_data/HCC1395T_R2.fastq.gz]]
+    [[patient:GM12878, assay:rna, status:normal, sample:GM12878N_T1, lane:1, id:GM12878N_T1-1, numLanes:1, read_group:"@RG\tID:null.GM12878N_T1.1\tPU:1\tSM:GM12878_GM12878N_T1\tLB:GM12878N_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1, strandedness:reverse], [/data/github/healed/dev_data/GM12878_R1.fastq.gz, /data/github/healed/dev_data/GM12878_R2.fastq.gz]]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                FASTQC, FASTP, SPLIT_FASTQ
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Perform FASTQC on raw reads, perform read trimming and split fastq files to paralle-
+    lize downstream alignment steps.
+
+    Subworkflow, module files:
+    - subworkflows/local/fastq_fastqc_fastp
+        - modules/nf-core/fastqc
+        - modules/nf-core/fastp
+
+    Config file:
+    - conf/modules/fastq_fastqc_fastp.config
+
+    Parameters                                                               Explanation
+    - params.skip_fastqc                                                    Skip FASTQC?
+    - params.trim_fastq                                          Trim FASTQ using FASTP?
+    - params.split_fastq                                        Split FASTQ using FASTP?
+    - params.save_trimmed                                        Save FASTP output file?
+    - params.save_split_fastqs                                  Save split FASTP FASTQs?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
     FASTQ_FASTQC_FASTP(
         INPUT_CHECK.out.reads
     )
+
+    // Gather versions
     ch_versions = ch_versions.mix(FASTQ_FASTQC_FASTP.out.versions)
+
+    // Gather reports
     ch_reports  = ch_reports.mix(FASTQ_FASTQC_FASTP.out.reports)
 
-    //
-    // PREPARE INTERVALS
-    //
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FASTQ_FASTQC_FASTP.out.reads.view()
+    params.split_fastq 500000
+    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [/data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0001.HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0001.HCC1395T_T1-1_2.fastp.fastq.gz]]
+    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [/data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0002.HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0002.HCC1395T_T1-1_2.fastp.fastq.gz]]
+
+    params.split_fastq 0
+    [[patient:HCC1395, assay:dna, status:tumor, sample:HCC1395T_T1, lane:1, id:HCC1395T_T1-1, numLanes:1, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1], [/data/github/healed/work/83/1a650a2a28e84689e007b1e810657c/HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/83/1a650a2a28e84689e007b1e810657c/HCC1395T_T1-1_2.fastp.fastq.gz]]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                PREPARE INTERVALS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    For DNA post alignment steps (i.e GATK best practices or Variant Calling) it is use-
+    ful to perform scatter-gather on BAM files to parellelize processes. For WES, it is
+    expected the user provides the capture kit BED file. For WGS, the fasta_fai file is
+    used to derive a per-centromere intervals file.
+
+    Subworkflow, module files:
+    - subworkflows/local/prepare_intervals
+        - modules/local/build_intervals
+        - modules/local/create_intervals_bed
+        - modules/nf-core/gatk4/intervallisttobed
+        - modules/nf-core/samtools/faidx
+        - modules/nf-core/tabix/bgziptabix
+
+    Config file:
+    - conf/modules/prepare_intervals.config
+
+    Parameters                                                               Explanation
+    - params.intervals                                   Intervals file provided by user
+    - params.nucleotides_per_second    Estimate chunk size time: end-start / nuc_per_sec
+    - params.no_intervals                 Output Channel.value([]) in place of intervals
+    - params.save_reference                                Save generated interval files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
     PREPARE_INTERVALS(
         fasta
     )
+
+    // Gather versions
     ch_versions = ch_versions.mix(PREPARE_INTERVALS.out.versions)
 
     // Collect created files
     fasta_fai                   = PREPARE_INTERVALS.out.fasta_fai
-    intervals_bed_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined  // [interval.bed] all intervals in one file
-    intervals_for_preprocessing = params.wes          ? intervals_bed_combined : []      // For QC during preprocessing, we don't need any intervals (MOSDEPTH doesn't take them for WGS)
-    intervals                   = PREPARE_INTERVALS.out.intervals_bed        // [interval, num_intervals] multiple interval.bed files, divided by useful intervals for scatter/gather
+    intervals_bed_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined
+    intervals_for_preprocessing = params.wes          ? intervals_bed_combined : Channel.value([])
+    intervals                   = PREPARE_INTERVALS.out.intervals_bed
     intervals_bed_gz_tbi        = PREPARE_INTERVALS.out.intervals_bed_gz_tbi
 
-    //
-    // PREPARE GENOME
-    //
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Tested with full Twist exome BED file to delineate channels
+    WES, intervals file provided:
+    chr21.fa.fai
+    [twist.bed]
+    [twist.bed]
+    [chr5_141344034-141346523.bed, 61] ...
+    [[chr5_141344034-141346523.bed.gz, chr5_141344034-141346523.bed.gz.tbi], 61] ...
+
+    WGS, no interval file provided:
+    chr21.fa.fai
+    [chr21.fa.bed]
+    []
+    [chr21_1-46709983.bed, 1]
+    [[chr21_1-46709983.bed.gz, chr21_1-46709983.bed.gz.tbi], 1]
+
+    Explained:
+    Fasta fai file
+    All intervals in one file, or empty value channel
+    All intervals for proprocessing. WGS can be empty, MOSDEPTH does not need them
+    Sharded interval files with total number intervals
+    Gzipped sharded interval files + index with total number intervals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                PREPARE GENOME
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Using Groovy hashmaps (think python dictionaries) parse the analysis tools selected
+    by the user. From here we can work backwards and assign values to a list that defi-
+    ne which genome index files must be prepared for downstream alignment. (See PREPARE
+    GENOME STEPS in preamble).
+
+    Subworkflow, module files:
+    - subworkflows/local/prepare_genome
+        - modules/nf-core/bwa/index
+        - modules/nf-core/star/genomegenerate
+
+    Config file:
+    - conf/modules/prepare_genome.config
+
+    Parameters                                                               Explanation
+    - params.bwa_index                                       Path to BWA index directory
+    - params.star_index                                    Path to STAR inbdex directory
+    - params.no_intervals                 Output Channel.value([]) in place of intervals
+    - params.save_reference                                Save generated interval files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
     PREPARE_GENOME(
         fasta,
         fasta_fai,
@@ -183,9 +325,32 @@ workflow HEALED {
         prepareGenomeIndex
     )
 
-    //
-    // SPLIT ASSAYS
-    //
+    // Gather versions
+    ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
+
+    // Collect indices
+    ch_bwa  = PREPARE_GENOME.out.bwa_index.view()
+    ch_star = PREPARE_GENOME.out.star_index.view()
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    PREPARE_GENOME.out.bwa.view()
+    [[id:fasta.baseName], bwa]
+
+    PREPARE_GENOME.out.star.view()
+    star/
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                SPLIT ASSAYS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    After processing reads, it makes sense to split the channel based on genomic assays.
+    To my knowledge, no tool takes as input both DNA and RNA files.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
 
     ch_reads = FASTQ_FASTQC_FASTP.out.reads
     ch_reads.branch{ meta, reads ->
@@ -193,94 +358,99 @@ workflow HEALED {
         rna: meta.assay == 'rna'; return [meta, reads]
     }.set{ ch_reads_to_map }
 
-    //
-    // FASTQ ALIGN DNA
-    //
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
 
-    ch_dna_reads_to_map = ch_reads_to_map.dna.map{ meta, reads ->
-        // update ID when no multiple lanes or splitted fastqs
-        new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
 
-        [[
-            data_type:  meta.data_type,
-            id:         new_id,
-            numLanes:   meta.numLanes,
-            patient:    meta.patient,
-            read_group: meta.read_group,
-            sample:     meta.sample,
-            size:       meta.size,
-            status:     meta.status,
-            ],
-        reads]
-    }
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                FASTQ ALIGN DNA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Channel processing is performed inside the workflow whereby the meta.id key is upda-
+    ted to meta.sample if the sample is split across multiple lanes or fastq files such
+    that they can be grouped after alignment using bam_merge_index subworkflow. A lot of
+    the nuance with this subworkflow is based around how the user wants to save output
+    files i.e as BAM or CRAM. The previously generated list 'dna_tools' can be used to
+    trigger process events - much like prepare genome.
 
-    sort_bam = true
+    Subworkflow, module files:
+    - subworkflows/local/fastq_align_dna
+        - modules/nf-core/bwa/mem
+        - subworkflows/local/bam_merge_index
+            - modules/nf-core/samtools/merge
+            - modules/nf-core/samtools/index
+
+    Config file:
+    - conf/modules/fastq_align_dna.config
+
+    Parameters                                                               Explanation
+    params.dna_snv_indel           Tools for SNV/INDEL detection. Informs aligner choice
+    params.dna_sv        Tools for detecting Structural Varation. Informs aligner choice
+    params.save_mapped                                                Save mapped files?
+    params.save_output_as_bam                                  Save as BAM? If not, CRAM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
     FASTQ_ALIGN_DNA(
-        ch_dna_reads_to_map,          // [channel] tuple
-        PREPARE_GENOME.out.bwa_index, // [channel] tuple
-        sort_bam                      // [boolean] value
+        ch_reads_to_map.dna,
+        PREPARE_GENOME.out.bwa_index,
+        fasta,
+        fasta_fai,
+        dna_tools
     )
 
-    //
-    // FASTQ_ALIGN_RNA
-    //
+    // Gather versions
+    ch_versions = ch_versions.mix(FASTQ_ALIGN_DNA.out.versions)
 
-    ch_rna_reads_to_map = ch_reads_to_map.rna.map{ meta, reads ->
-        // update ID when no multiple lanes or splitted fastqs
-        new_id = meta.size * meta.numLanes == 1 ? meta.sample : meta.id
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FASTQ_ALIGN_DNA.out.cram.view():
+    [[id:HCC1395T_T1, data_type:bam, patient:HCC1395, sample:HCC1395T_T1, status:tumor], HCC1395T_T1.sorted.cram, HCC1395T_T1.sorted.cram.crai]
+    [[id:HCC1395N_T1, data_type:bam, patient:HCC1395, sample:HCC1395N_T1, status:normal], HCC1395N_T1.sorted.cram, HCC1395N_T1.sorted.cram.crai]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
 
-        [[
-            data_type:     meta.data_type,
-            id:            new_id,
-            numLanes:      meta.numLanes,
-            patient:       meta.patient,
-            read_group:    meta.read_group,
-            sample:        meta.sample,
-            size:          meta.size,
-            status:        meta.status,
-            strandedness = meta.strandedness
-            ],
-        reads]
-    }
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                FASTQ ALIGN RNA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Firstly, FASTQ files over multiple lanes must be consolidated prior to alignment. T-
+    -his is the opposite behaviour to DNA alignemnt which can be merged post alignment.
+    The previously generated list 'rna_tools' can be used to  trigger process events -
+    much like prepare genome.
+
+    Subworkflow, module files:
+    - subworkflows/local/fastq_align_rna
+        - modules/nf-core/cat/fastq
+        - modules/nf-core/star/align
+
+    Config file:
+    - conf/modules/fastq_align_rna.config
+
+    Parameters                                                               Explanation
+    params.rna_quant            Tool used for RNA quantification. Informs aligner choice
+    params.rna_fusion         Tool used for RNA-Fusion detection. Informs aligner choice
+    params.save_mapped                                                Save mapped files?
+    params.save_output_as_bam                                  Save as BAM? If not, CRAM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
 
     FASTQ_ALIGN_RNA(
-        ch_rna_reads_to_map,           // [channel] tuple
-        PREPARE_GENOME.out.star_index, // [channel] path
-        gtf                            // [channel] path
+        ch_reads_to_map.rna,
+        PREPARE_GENOME.out.star_index,
+        gtf,
+        rna_tools
     )
 
-    FASTQ_ALIGN_RNA.out.junctions.view()
-    FASTQ_ALIGN_RNA.out.bam.view()
+/*
 
     // could be a good idea to tag meta with [[downstream:'star_fusion']] etc to explicitly set DS tools.
 
-    //
-    // ALIGNED DNA BAMS
-    //
-
-    // Grouping the bams from the same samples not to stall the workflow
-    ch_bam_mapped = FASTQ_ALIGN_DNA.out.bam.map{ meta, bam ->
-        numLanes = meta.numLanes ?: 1
-        size     = meta.size     ?: 1
-
-        // update ID to be based on the sample name
-        // update data_type
-        // remove no longer necessary fields:
-        //   read_group: Now in the BAM header
-        //     numLanes: Was only needed for mapping
-        //         size: Was only needed for mapping
-        new_meta = [
-                    id:meta.sample,
-                    data_type:"bam",
-                    patient:meta.patient,
-                    sample:meta.sample,
-                    status:meta.status,
-                ]
-
-        // Use groupKey to make sure that the correct group can advance as soon as it is complete
-        // and not stall the workflow until all reads from all channels are mapped
-        [ groupKey(new_meta, numLanes * size), bam]
-    }.groupTuple()
 
     //
     // SAVE BAM AS CRAM
@@ -290,7 +460,7 @@ workflow HEALED {
 
         // bams are merged (when multiple lanes from the same sample), indexed and then converted to cram
         BAM_MERGE_INDEX_SAMTOOLS(ch_bam_mapped)
-        BAM_TO_CRAM_MAPPING(BAM_MERGE_INDEX_SAMTOOLS.out.bam_bai, fasta, fasta_fai)
+        BAM_TO_CRAM_MAPPING(BAM_MERGE_INDEX_SAMTOOLS.out.bam_bai, fasta, ch_fai)
 
         // Gather used softwares versions
         ch_versions = ch_versions.mix(BAM_MERGE_INDEX_SAMTOOLS.out.versions)
@@ -301,19 +471,23 @@ workflow HEALED {
     // MARK DUPLICATES
     //
 
+    // Use output from ALIGN_DNA [channel] tuple val(), path(bam)
     ch_for_markduplicates = ch_bam_mapped
-    intervals_for_preprocessing.view()
+
+
     BAM_MARKDUPLICATES(
         ch_for_markduplicates,
         fasta,
-        fasta_fai,
+        ch_fai,
         intervals_for_preprocessing
     )
 
-    ch_cram_markduplicates = BAM_MARKDUPLICATES.out.cram.view()
+    // Capture output CRAM,CRAI file from MarkDuplicates
+    ch_cram_markduplicates = BAM_MARKDUPLICATES.out.cram // [channel] cram, crai
 
     // Gather QC reports
     ch_reports  = ch_reports.mix(BAM_MARKDUPLICATES.out.qc.collect{meta, report -> report})
+
     // Gather used softwares versions
     ch_versions = ch_versions.mix(BAM_MARKDUPLICATES.out.versions)
 
@@ -321,36 +495,41 @@ workflow HEALED {
     // ABRA2 REALIGNMENT
     //
 
-    if(params.abra2_realignment || params.dna_snv_indel.contains('abra2')) {
+    if(params.abra2_realignment || dna_snv_indel_list.contains('abra2')) {
 
-        CRAM_TO_BAM(
+        BAM_ABRA2(
             ch_cram_markduplicates,
             fasta,
-            fasta_fai
-        )
-        ch_versions = ch_versions.mix(CRAM_TO_BAM.out.versions)
-
-        CRAM_TO_BAM.out.alignment_index.branch{ meta, cram, crai ->
-                                                tumor: meta.status == 'tumor'; return [meta, cram, crai]
-                                                normal: meta.status =='normal'; return [meta, cram, crai]
-                                            }.set{ ch_bam_markduplicates_branched }
-
-        fuck_my_workflow = Channel.of([[], [], []]) // this works but you lose meta info. sure what are ya supposed to do there.
-
-
-        ABRA2(
-            fuck_my_workflow,
-            ch_bam_markduplicates_branched.tumor,
-            fasta,
+            ch_fai,
             gtf,
-            [],
-            intervals_for_preprocessing,
-            false
+            junctions,
+            intervals_for_preprocessing
         )
-        ch_versions = ch_versions.mix(ABRA2.out.versions)
-        ch_abra2_bams = ABRA2.out.abra2_normal.mix(ABRA2.out.abra2_tumor).view()
 
+        // Gather versions
+        ch_versions = ch_versions.mix(BAM_ABRA2.out.versions)
+
+        // Gather ABRA2 crams
+        ch_cram_abra2 = BAM_ABRA2.out.cram
+
+    } else {
+        ch_cram_abra2 = ch_cram_markduplicates
     }
+
+    // Naming convention
+    ch_for_recalibrator = ch_cram_abra2
+
+    // take care of bams i.e merging if step skipped (hint place it in front of ABRA2 using mix on input chan , declare output from if statwement)
+    // take care of bam to cram tracing too baz
+    // make better comments on monday as you can't come back to this kind of shite after a break.
+
+    //
+    // STRUCTURAL VARIANTS
+    //
+
+   ///STRUCTURAL_VARIATION(
+    //    ch_abrA
+    //) */
 
     //
     // COLLECT VERSIONS
