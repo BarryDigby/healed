@@ -10,10 +10,10 @@ include { SAMTOOLS_INDEX as INDEX_MARKDUPLICATES } from '../../../modules/nf-cor
 
 workflow BAM_MARKDUPLICATES {
     take:
-        bam                           // channel: [mandatory] meta, bam
-        fasta                         // channel: [mandatory] fasta
-        fasta_fai                     // channel: [mandatory] fasta_fai
-        intervals_bed_combined        // channel: [optional]  intervals_bed
+        cram                           // channel: [mandatory] meta, cram, crai
+        fasta                          // channel: [mandatory] fasta
+        fasta_fai                      // channel: [mandatory] fasta_fai
+        intervals_bed_combined         // channel: [optional]  intervals_bed
 
     main:
 
@@ -21,7 +21,7 @@ workflow BAM_MARKDUPLICATES {
     qc_reports  = Channel.empty()
 
     // Run Markupduplicates
-    GATK4_MARKDUPLICATES(bam, fasta, fasta_fai)
+    GATK4_MARKDUPLICATES(cram.map{ meta, cram, crai -> [meta, cram] }, fasta, fasta_fai)
     INDEX_MARKDUPLICATES(GATK4_MARKDUPLICATES.out.cram)
 
     cram_markduplicates = GATK4_MARKDUPLICATES.out.cram
@@ -42,6 +42,5 @@ workflow BAM_MARKDUPLICATES {
     emit:
         cram     = cram_markduplicates
         qc       = qc_reports
-
         versions = ch_versions // channel: [ versions.yml ]
 }

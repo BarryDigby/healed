@@ -56,7 +56,7 @@ dna_cnv_list = params.dna_cnv ? params.dna_cnv.split(',').collect{ it.trim().toL
 dna_tools = dna_snv_indel_list + dna_cnv_list
 
 def prepareDNAIndex = []
-if(dna_tools) {
+if(dna_tools.size() > 0) {
     for ( tool in dna_tools ) {
         prepareDNAIndex << dna_aligners_hashmap.find{ it.value.contains( tool ) }.key
     }
@@ -76,7 +76,7 @@ rna_fusion_list = params.rna_fusion ? params.rna_fusion.split(',').collect{ it.t
 rna_tools = rna_quant_list + rna_fusion_list
 
 def prepareRNAIndex = []
-if(rna_tools) {
+if(rna_tools.size() > 0) {
     for ( tool in rna_tools ) {
         prepareRNAIndex << rna_aligners_hashmap.find{ it.value.contains( tool ) }.key
     }
@@ -438,8 +438,6 @@ workflow HEALED {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-
-
     FASTQ_ALIGN_RNA(
         ch_reads_to_map.rna,
         PREPARE_GENOME.out.star_index,
@@ -447,10 +445,46 @@ workflow HEALED {
         rna_tools
     )
 
+
+/// WIP!
 /*
 
-    // could be a good idea to tag meta with [[downstream:'star_fusion']] etc to explicitly set DS tools.
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                MARK DUPLICATES
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Use aligned CRAMs as input, perform GATK MarkDuplicates in addition to samtools sta-
+    ts and mosdepth stats. In and out, pretty straight forward.
 
+    Subworkflow, module files:
+    - subworkflows/local/bam_markduplicates
+        - modules/nf-core/gatk4/markduplicates
+        - modules/nf-core/samtools/index
+        - subworkflows/local/cram_qc_mosdepth_samtools
+            - modules/nf-core/samtools/stats
+            - modules/nf-core/mosdepth
+
+    Config file:
+    - conf/modules/markduplicates.config
+
+    Parameters                                                               Explanation
+    params.rna_quant            Tool used for RNA quantification. Informs aligner choice
+    params.rna_fusion         Tool used for RNA-Fusion detection. Informs aligner choice
+    params.save_mapped                                                Save mapped files?
+    params.save_output_as_bam                                  Save as BAM? If not, CRAM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+    BAM_MARKDUPLICATES(
+        FASTQ_ALIGN_DNA.out.cram,
+        fasta,
+        fasta_fai,
+        intervals_bed_combined
+    )
+
+    BAM_MARKDUPLICATES.out.cram.view()
+
+/*
 
     //
     // SAVE BAM AS CRAM
@@ -478,7 +512,7 @@ workflow HEALED {
     BAM_MARKDUPLICATES(
         ch_for_markduplicates,
         fasta,
-        ch_fai,
+        fasta_fai,
         intervals_for_preprocessing
     )
 

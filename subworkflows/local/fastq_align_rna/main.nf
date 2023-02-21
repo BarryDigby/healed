@@ -32,8 +32,8 @@ workflow FASTQ_ALIGN_RNA {
     //
     // [[patient:GM12878, assay:rna, status:normal, sample:GM12878N_T1, lane:1, id:GM12878N-1, numLanes:1, read_group:"@RG\tID:null.GM12878N_T1.1\tPU:1\tSM:GM12878_GM12878N_T1\tLB:GM12878N_T1\tDS:dev_data/chr21.fa\tPL:ILLUMINA", data_type:fastq, size:1, strandedness:reverse], [/data/github/healed/dev_data/GM12878_R1.fastq.gz, /data/github/healed/dev_data/GM12878_R2.fastq.gz]]
     //
-    // Gameplan here is to strip -1/-2 etc or _T1, _T2 to use groupTuple()
-    ch_reads.view()
+    // Gameplan here is to strip -1/-2 etc or _T1, _T2 to use groupTuple():
+
     ch_reads.map{ meta, reads ->
 
         new_id         = meta.id - ~/_(T\d+)-(\d+)/
@@ -66,8 +66,6 @@ workflow FASTQ_ALIGN_RNA {
     .mix(ch_fastq.single)
     .set { reads }
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
-
-    //reads.view()
 
     //
     // Stage empty channels, reduce these as you see fit
