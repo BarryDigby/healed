@@ -25,7 +25,7 @@ if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input sample
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-gtf                = params.gtf                ? Channel.fromPath(params.gtf)                       : Channel.empty()
+gtf                = params.gtf                ? Channel.fromPath(params.gtf).collect()                       : Channel.empty()
 fasta              = params.fasta              ? Channel.fromPath(params.fasta).collect()           : Channel.empty()
 
 // Fails when wrongfull extension for intervals file

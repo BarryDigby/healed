@@ -8,7 +8,7 @@ include { STAR_ALIGN as STAR_ALIGN_QUANT } from '../../../modules/nf-core/star/a
 workflow FASTQ_ALIGN_RNA {
     take:
         ch_reads     // channel: [mandatory] meta, reads
-        ch_map_index // channel: [mandatory] mapping index (tuple)
+        ch_map_index // channel: path star/
         gtf          // channel: [mandatory] gtf
         rna_tools    // array list
 
