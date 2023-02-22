@@ -37,7 +37,7 @@ workflow PREPARE_GENOME {
     }
 
     ch_star_index = Channel.empty()
-    if('star' in prepare_tool_indices) {
+    if(prepare_tool_indices.every{["star", "star_fusion"]}) {
         if (params.star_index) {
             ch_star_index = file(params.star_index)
         } else {
@@ -59,7 +59,7 @@ workflow PREPARE_GENOME {
         }
     }
 
-    ch_filter_gtf              = Channel.empty()
+    ch_filter_gtf       = Channel.empty()
     ch_transcript_fasta = Channel.empty()
     if('star' in prepare_tool_indices) {
         if(params.transcript_fasta){

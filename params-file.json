@@ -6,5 +6,6 @@
     "save_mapped": true,
     "rna_fusion": "star_fusion",
     "fasta": "dev_data/chr21.fa",
-    "gtf": "dev_data/chr21.gtf"
+    "gtf": "dev_data/chr21.gtf",
+    "ctat_genome_lib": "/data/github/healed/dev_data"
 }

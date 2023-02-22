@@ -123,6 +123,7 @@ workflow FASTQ_ALIGN_RNA {
         )
         ch_fusion_sorted_bam = STAR_ALIGN_FUSION.out.bam_sorted
         ch_versions          = ch_versions.mix(STAR_ALIGN_FUSION.out.versions)
+        // No need to sort, just index and run stats
         INDEX_STATS_FUSION(ch_fusion_sorted_bam, fasta)
         ch_versions = ch_versions.mix(INDEX_STATS_FUSION.out.versions)
         ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.stats)
