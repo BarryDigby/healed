@@ -214,11 +214,11 @@ workflow HEALED {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     FASTQ_FASTQC_FASTP.out.reads.view()
     params.split_fastq 500000
-    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [/data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0001.HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0001.HCC1395T_T1-1_2.fastp.fastq.gz]]
-    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [/data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0002.HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/8e/bb281105453880378252ecefbcf4a6/0002.HCC1395T_T1-1_2.fastp.fastq.gz]]
+    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [0001.HCC1395T_T1-1_1.fastp.fastq.gz, 0001.HCC1395T_T1-1_2.fastp.fastq.gz]]
+    [[assay:dna, data_type:fastq, id:HCC1395T_T1-1, numLanes:1, patient:HCC1395, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", sample:HCC1395T_T1, size:2, status:tumor], [0002.HCC1395T_T1-1_1.fastp.fastq.gz, 0002.HCC1395T_T1-1_2.fastp.fastq.gz]]
 
     params.split_fastq 0
-    [[patient:HCC1395, assay:dna, status:tumor, sample:HCC1395T_T1, lane:1, id:HCC1395T_T1-1, numLanes:1, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1], [/data/github/healed/work/83/1a650a2a28e84689e007b1e810657c/HCC1395T_T1-1_1.fastp.fastq.gz, /data/github/healed/work/83/1a650a2a28e84689e007b1e810657c/HCC1395T_T1-1_2.fastp.fastq.gz]]
+    [[patient:HCC1395, assay:dna, status:tumor, sample:HCC1395T_T1, lane:1, id:HCC1395T_T1-1, numLanes:1, read_group:"@RG\tID:null.HCC1395T_T1.1\tPU:1\tSM:HCC1395_HCC1395T_T1\tLB:HCC1395T_T1\tDS:null\tPL:ILLUMINA", data_type:fastq, size:1], [HCC1395T_T1-1_1.fastp.fastq.gz, HCC1395T_T1-1_2.fastp.fastq.gz]]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
@@ -419,13 +419,18 @@ workflow HEALED {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Firstly, FASTQ files over multiple lanes must be consolidated prior to alignment. T-
     -his is the opposite behaviour to DNA alignemnt which can be merged post alignment.
-    The previously generated list 'rna_tools' can be used to  trigger process events -
-    much like prepare genome.
+    Once alignment has been completed, the BAM files are sorted (if necessary), indexed
+    and subject to stats, idxstats, flagstats. Saved as BAM or CRAM.
+
+    STAR 'Quantification' is for downstream use by Salmon. We are interested only in the
+    toTranscriptome.out.bam file for this step.
 
     Subworkflow, module files:
     - subworkflows/local/fastq_align_rna
         - modules/nf-core/cat/fastq
         - modules/nf-core/star/align
+        - subworkflows/nf-core/bam_sort_stats_samtools
+        - modules/nf-core/samtools/convert
 
     Config file:
     - conf/modules/fastq_align_rna.config
@@ -441,9 +446,15 @@ workflow HEALED {
     FASTQ_ALIGN_RNA(
         ch_reads_to_map.rna,
         PREPARE_GENOME.out.star_index,
+        fasta,
+        fasta_fai,
         gtf,
         rna_tools
     )
+
+    // Gather verions,reports
+    ch_versions = ch_versions.mix(FASTQ_ALIGN_RNA.out.versions)
+    ch_reports  = ch_reports.mix(FASTQ_ALIGN_RNA.out.reports)
 
 
 /// WIP!
@@ -482,8 +493,11 @@ workflow HEALED {
         intervals_bed_combined
     )
 
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     BAM_MARKDUPLICATES.out.cram.view()
-
+    [[id:HCC1395N_T1, data_type:bam, patient:HCC1395, sample:HCC1395N_T1, status:normal], HCC1395N_T1.md.cram, HCC1395N_T1.md.cram.crai]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /*
 
     //

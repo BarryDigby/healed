@@ -3,7 +3,6 @@
 //
 
 // DNA
-
 include { BWA_INDEX                                       } from '../../../modules/nf-core/bwa/index/main'
 
 // RNA-Seq
@@ -29,10 +28,10 @@ workflow PREPARE_GENOME {
     ch_bwa_index = Channel.empty()
     if('bwa' in prepare_tool_indices) {
         if(params.bwa_index) {
-            ch_bwa_index = file(params.bwa_index) // not a tuple
-            ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]} // make a tuple
+            ch_bwa_index = file(params.bwa_index)
+            ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]}
         } else {
-            ch_bwa_index = BWA_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index // is a tuple
+            ch_bwa_index = BWA_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index
             ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
         }
     }
@@ -60,15 +59,16 @@ workflow PREPARE_GENOME {
         }
     }
 
-    // TODO: unsure yet what tools depend on this, update if else when you know.
     ch_transcript_fasta = Channel.empty()
-    if(params.transcript_fasta){
-        ch_transcript_fasta = file(params.transcript_fasta)
-    } else {
-        ch_filter_gtf       = GTF_GENE_FILTER ( fasta, gtf ).gtf
-        ch_transcript_fasta = MAKE_TRANSCRIPTS_FASTA ( fasta, ch_filter_gtf ).transcript_fasta
-        ch_versions         = ch_versions.mix(GTF_GENE_FILTER.out.versions)
-        ch_versions         = ch_versions.mix(MAKE_TRANSCRIPTS_FASTA.out.versions)
+    if('star' in prepare_tool_indices) {
+        if(params.transcript_fasta){
+            ch_transcript_fasta = file(params.transcript_fasta)
+        } else {
+            ch_filter_gtf       = GTF_GENE_FILTER ( fasta, gtf ).gtf
+            ch_transcript_fasta = MAKE_TRANSCRIPTS_FASTA ( fasta, ch_filter_gtf ).transcript_fasta
+            ch_versions         = ch_versions.mix(GTF_GENE_FILTER.out.versions)
+            ch_versions         = ch_versions.mix(MAKE_TRANSCRIPTS_FASTA.out.versions)
+        }
     }
 
     // Gather versions of all tools used
