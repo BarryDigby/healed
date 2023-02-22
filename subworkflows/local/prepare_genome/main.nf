@@ -59,6 +59,7 @@ workflow PREPARE_GENOME {
         }
     }
 
+    ch_filter_gtf              = Channel.empty()
     ch_transcript_fasta = Channel.empty()
     if('star' in prepare_tool_indices) {
         if(params.transcript_fasta){
@@ -102,6 +103,7 @@ workflow PREPARE_GENOME {
         loci_files                       = loci_files
         gc_file                          = gc_file
         rt_file                          = rt_file */
+        filter_gtf                       = ch_filter_gtf
         star_index                       = ch_star_index
         transcript_fasta                 = ch_transcript_fasta
         versions                         = ch_versions                                                         // channel: [ versions.yml ]

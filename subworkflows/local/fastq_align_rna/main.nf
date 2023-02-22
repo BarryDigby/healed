@@ -2,10 +2,13 @@
 // RNA MAPPING
 //
 
-include { CAT_FASTQ                              } from '../../../modules/nf-core/cat/fastq/main'
-include { STAR_ALIGN as STAR_ALIGN_QUANT         } from '../../../modules/nf-core/star/align/main'
-include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_QUANT } from '../../nf-core/bam_sort_stats_samtools'
-include { SAMTOOLS_CONVERT as CONVERT_QUANT      } from '../../../modules/nf-core/samtools/convert/main'
+include { CAT_FASTQ                                   }    from '../../../modules/nf-core/cat/fastq/main'
+include { STAR_ALIGN as STAR_ALIGN_QUANT              }    from '../../../modules/nf-core/star/align/main'
+include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_QUANT }    from '../../nf-core/bam_sort_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_QUANT           }    from '../../../modules/nf-core/samtools/convert/main'
+include { STAR_ALIGN as STAR_ALIGN_FUSION             }    from '../../../modules/nf-core/star/align/main'
+include { BAM_INDEX_STATS_SAMTOOLS as INDEX_STATS_FUSION } from '../bam_index_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_FUSION          }    from '../../../modules/nf-core/samtools/convert/main'
 
 workflow FASTQ_ALIGN_RNA {
     take:
@@ -104,6 +107,39 @@ workflow FASTQ_ALIGN_RNA {
             ch_versions = ch_versions.mix(CONVERT_QUANT.out.versions)
         }
     }
+
+    //
+    // STAR FOR STAR-FUSION
+    //
+    ch_fusion_sorted_bam = Channel.empty()
+    if('star_fusion' in rna_tools) {
+        STAR_ALIGN_FUSION(
+            reads,
+            ch_map_index,
+            gtf,
+            false,
+            params.seq_platform ?: '',
+            'ILLUMINA'
+        )
+        ch_fusion_sorted_bam = STAR_ALIGN_FUSION.out.bam_sorted
+        ch_versions          = ch_versions.mix(STAR_ALIGN_FUSION.out.versions)
+        INDEX_STATS_FUSION(ch_fusion_sorted_bam, fasta)
+        ch_versions = ch_versions.mix(INDEX_STATS_FUSION.out.versions)
+        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.stats)
+        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.flagstat)
+        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.idxstats)
+        ch_fusion_sorted_bam_index = INDEX_STATS_FUSION.out.bam.join(INDEX_STATS_FUSION.out.bai)
+        // Allow user to save as CRAM if they want.
+        if(!params.save_output_as_bam && params.save_mapped) {
+            CONVERT_FUSION(
+                ch_fusion_sorted_bam_index,
+                fasta,
+                fasta_fai
+            )
+            ch_versions = ch_versions.mix(CONVERT_FUSION.out.versions)
+        }
+    }
+
 
     emit:
         quant_bam_transcript = ch_quant_sorted_bam_index // tuple meta, bam, bai [sorted transcriptome bam file]
