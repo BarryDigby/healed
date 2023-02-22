@@ -2,19 +2,24 @@
 // RNA MAPPING
 //
 
-include { CAT_FASTQ                      } from '../../../modules/nf-core/cat/fastq/main'
-include { STAR_ALIGN as STAR_ALIGN_QUANT } from '../../../modules/nf-core/star/align/main'
+include { CAT_FASTQ                              } from '../../../modules/nf-core/cat/fastq/main'
+include { STAR_ALIGN as STAR_ALIGN_QUANT         } from '../../../modules/nf-core/star/align/main'
+include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_QUANT } from '../../nf-core/bam_sort_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_QUANT      } from '../../../modules/nf-core/samtools/convert/main'
 
 workflow FASTQ_ALIGN_RNA {
     take:
         ch_reads     // channel: [mandatory] meta, reads
         ch_map_index // channel: path star/
+        fasta        // channel: path fasta
+        fasta_fai    // channel: path fai
         gtf          // channel: [mandatory] gtf
         rna_tools    // array list
 
     main:
 
     ch_versions = Channel.empty()
+    ch_reports = Channel.empty()
 
     // Do not split the FASTQ files for RNA seq, the sheer volume of output
     // files from STAR makes this a headache. Recall that RNASeq did away
@@ -68,16 +73,9 @@ workflow FASTQ_ALIGN_RNA {
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
     //
-    // Stage empty channels, reduce these as you see fit
+    // STAR FOR QUANTIFICATION
     //
-    ch_orig_bam       = Channel.empty()
-    ch_log_final      = Channel.empty()
-    ch_log_out        = Channel.empty()
-    ch_log_progress   = Channel.empty()
-    ch_bam_sorted     = Channel.empty()
-    ch_bam_transcript = Channel.empty()
-    ch_fastq          = Channel.empty()
-    ch_tab            = Channel.empty()
+    ch_quant_sorted_bam_index = Channel.empty()
     if('star_salmon' in rna_tools) {
         STAR_ALIGN_QUANT (
             reads,
@@ -87,19 +85,28 @@ workflow FASTQ_ALIGN_RNA {
             params.seq_platform ?: '',
             'ILLUMINA'
         )
-        ch_orig_bam       = STAR_ALIGN_QUANT.out.bam
-        ch_log_final      = STAR_ALIGN_QUANT.out.log_final
-        ch_log_out        = STAR_ALIGN_QUANT.out.log_out
-        ch_log_progress   = STAR_ALIGN_QUANT.out.log_progress
-        ch_bam_sorted     = STAR_ALIGN_QUANT.out.bam_sorted
-        ch_bam_transcript = STAR_ALIGN_QUANT.out.bam_transcript
-        ch_fastq          = STAR_ALIGN_QUANT.out.fastq
-        ch_tab            = STAR_ALIGN_QUANT.out.tab
-        ch_versions       = ch_versions.mix(STAR_ALIGN_QUANT.out.versions.first())
+        ch_quant_bam_transcript = STAR_ALIGN_QUANT.out.bam_transcript
+        ch_versions             = ch_versions.mix(STAR_ALIGN_QUANT.out.versions.first())
+        // Aligned.toTranscriptome.out.bam is never sorted.
+        SORT_STATS_QUANT(ch_quant_bam_transcript, fasta)
+        ch_versions = ch_versions.mix(SORT_STATS_QUANT.out.versions)
+        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.stats)
+        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.flagstat)
+        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.idxstats)
+        ch_quant_sorted_bam_index = SORT_STATS_QUANT.out.bam.join(SORT_STATS_QUANT.out.bai)
+        // Allow user to save as CRAM if they want.
+        if(!params.save_output_as_bam && params.save_mapped) {
+            CONVERT_QUANT(
+                ch_quant_sorted_bam_index,
+                fasta,
+                fasta_fai
+            )
+            ch_versions = ch_versions.mix(CONVERT_QUANT.out.versions)
+        }
     }
 
     emit:
-        bam       = ch_orig_bam // [channel] tuple
-        junctions = ch_tab  // [channel] tuple
-        versions  = ch_versions   // [channel] path
+        quant_bam_transcript = ch_quant_sorted_bam_index // tuple meta, bam, bai [sorted transcriptome bam file]
+        versions             = ch_versions
+        reports              = ch_reports
 }
