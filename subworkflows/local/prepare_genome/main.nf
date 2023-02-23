@@ -11,6 +11,7 @@ include { RSEM_PREPAREREFERENCE as MAKE_TRANSCRIPTS_FASTA } from '../../../modul
 include { GTF_GENE_FILTER                                 } from '../../../modules/local/gtf_gene_filter/main'
 
 //RNA Fusion
+include { ARRIBA_REF_DOWNLOAD                             } from '../../../modules/local/arriba/ref_download/main'
 include { CTAT_GENOME_LIB                                 } from '../../../modules/local/ctat_genome/main'
 
 workflow PREPARE_GENOME {
@@ -25,6 +26,22 @@ workflow PREPARE_GENOME {
 
     ch_versions = Channel.empty()
 
+    ch_arriba_blacklist       = Channel.empty()
+    ch_arriba_known_fusions   = Channel.empty()
+    ch_arriba_protein_domains = Channel.empty()
+    if('arriba' in prepare_tool_indices) {
+        if( (params.arriba_blacklist && params.arriba_known_fusions && params.arriba_protein_domains) ) {
+            ch_arriba_blacklist       = file(params.arriba_blacklist)
+            ch_arriba_known_fusions   = file(params.arriba_known_fusions)
+            ch_arriba_protein_domains = file(params.arriba_protein_domains)
+        }
+    } else {
+        ARRIBA_REF_DOWNLOAD()
+        ch_arriba_blacklist       = ARRIBA_REF_DOWNLOAD.out.blacklist
+        ch_arriba_known_fusions   = ARRIBA_REF_DOWNLOAD.out.known_fusions
+        ch_arriba_protein_domains = ARRIBA_REF_DOWNLOAD.out.protein_domains
+    }
+
     ch_bwa_index = Channel.empty()
     if('bwa' in prepare_tool_indices) {
         if(params.bwa_index) {
@@ -37,7 +54,7 @@ workflow PREPARE_GENOME {
     }
 
     ch_star_index = Channel.empty()
-    if(prepare_tool_indices.every{["star", "star_fusion"]}) {
+    if(prepare_tool_indices.every{["star", "star_fusion", "arriba"]}) {
         if (params.star_index) {
             ch_star_index = file(params.star_index)
         } else {
@@ -87,7 +104,12 @@ workflow PREPARE_GENOME {
   //  ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
 
     emit:
+        arriba_blacklist                 = ch_arriba_blacklist
+        arriba_known_fusions             = ch_arriba_known_fusions
+        arriba_protein_domains           = ch_arriba_protein_domains
         bwa_index                        = ch_bwa_index       // path: bwa/*
+        ctat_genome_lib                  = ch_ctat_genome_lib
+        ctat_genome_gtf                  = ch_ctat_genome_gtf
 /*         bwamem2                          = BWAMEM2_INDEX.out.index.map{ meta, index -> [index] }.collect()       // path: bwamem2/*
         hashtable                        = DRAGMAP_HASHTABLE.out.hashmap.map{ meta, index -> [index] }.collect() // path: dragmap/*
         dbsnp_tbi                        = TABIX_DBSNP.out.tbi.map{ meta, tbi -> [tbi] }.collect()               // path: dbsnb.vcf.gz.tbi

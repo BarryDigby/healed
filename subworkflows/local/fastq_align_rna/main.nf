@@ -2,13 +2,17 @@
 // RNA MAPPING
 //
 
-include { CAT_FASTQ                                   }    from '../../../modules/nf-core/cat/fastq/main'
-include { STAR_ALIGN as STAR_ALIGN_QUANT              }    from '../../../modules/nf-core/star/align/main'
-include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_QUANT }    from '../../nf-core/bam_sort_stats_samtools'
-include { SAMTOOLS_CONVERT as CONVERT_QUANT           }    from '../../../modules/nf-core/samtools/convert/main'
-include { STAR_ALIGN as STAR_ALIGN_FUSION             }    from '../../../modules/nf-core/star/align/main'
-include { BAM_INDEX_STATS_SAMTOOLS as INDEX_STATS_FUSION } from '../bam_index_stats_samtools'
-include { SAMTOOLS_CONVERT as CONVERT_FUSION          }    from '../../../modules/nf-core/samtools/convert/main'
+include { CAT_FASTQ                                    } from '../../../modules/nf-core/cat/fastq/main'
+include { STAR_ALIGN as STAR_ALIGN_SALMON              } from '../../../modules/nf-core/star/align/main'
+include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_SALMON } from '../../nf-core/bam_sort_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_SALMON_BAM       } from '../../../modules/nf-core/samtools/convert/main'
+include { STAR_ALIGN as STAR_ALIGN_STARFUSION          } from '../../../modules/nf-core/star/align/main'
+include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_STARFUSION } from '../../nf-core/bam_sort_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_STARFUSION_BAM   } from '../../../modules/nf-core/samtools/convert/main'
+include { STAR_ALIGN as STAR_ALIGN_ARRIBA              } from '../../../modules/nf-core/star/align/main'
+include { BAM_SORT_STATS_SAMTOOLS as SORT_STATS_ARRIBA } from '../../nf-core/bam_sort_stats_samtools'
+include { SAMTOOLS_CONVERT as CONVERT_ARRIBA_BAM       } from '../../../modules/nf-core/samtools/convert/main'
+
 
 workflow FASTQ_ALIGN_RNA {
     take:
@@ -76,11 +80,11 @@ workflow FASTQ_ALIGN_RNA {
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
     //
-    // STAR FOR QUANTIFICATION
+    // STAR FOR SALMON
     //
-    ch_quant_sorted_bam_index = Channel.empty()
+    ch_salmon_sorted_bam_index = Channel.empty()
     if('star_salmon' in rna_tools) {
-        STAR_ALIGN_QUANT (
+        STAR_ALIGN_SALMON (
             reads,
             ch_map_index,
             gtf,
@@ -88,32 +92,33 @@ workflow FASTQ_ALIGN_RNA {
             params.seq_platform ?: '',
             'ILLUMINA'
         )
-        ch_quant_bam_transcript = STAR_ALIGN_QUANT.out.bam_transcript
-        ch_versions             = ch_versions.mix(STAR_ALIGN_QUANT.out.versions.first())
+        ch_salmon_bam_transcript = STAR_ALIGN_SALMON.out.bam_transcript
+        ch_versions              = ch_versions.mix(STAR_ALIGN_SALMON.out.versions.first())
         // Aligned.toTranscriptome.out.bam is never sorted.
-        SORT_STATS_QUANT(ch_quant_bam_transcript, fasta)
-        ch_versions = ch_versions.mix(SORT_STATS_QUANT.out.versions)
-        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.stats)
-        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.flagstat)
-        ch_reports  = ch_reports.mix(SORT_STATS_QUANT.out.idxstats)
-        ch_quant_sorted_bam_index = SORT_STATS_QUANT.out.bam.join(SORT_STATS_QUANT.out.bai)
+        SORT_STATS_SALMON(ch_salmon_bam_transcript, fasta)
+        ch_versions = ch_versions.mix(SORT_STATS_SALMON.out.versions)
+        ch_reports  = ch_reports.mix(SORT_STATS_SALMON.out.stats)
+        ch_reports  = ch_reports.mix(SORT_STATS_SALMON.out.flagstat)
+        ch_reports  = ch_reports.mix(SORT_STATS_SALMON.out.idxstats)
+        ch_salmon_sorted_bam_index = SORT_STATS_SALMON.out.bam.join(SORT_STATS_SALMON.out.bai)
         // Allow user to save as CRAM if they want.
         if(!params.save_output_as_bam && params.save_mapped) {
-            CONVERT_QUANT(
-                ch_quant_sorted_bam_index,
+            CONVERT_SALMON_BAM(
+                ch_salmon_sorted_bam_index,
                 fasta,
                 fasta_fai
             )
-            ch_versions = ch_versions.mix(CONVERT_QUANT.out.versions)
+            ch_versions = ch_versions.mix(CONVERT_SALMON_BAM.out.versions)
         }
     }
 
     //
     // STAR FOR STAR-FUSION
     //
-    ch_fusion_sorted_bam = Channel.empty()
+    ch_starfusion_sorted_bam_index = Channel.empty()
+    ch_starfusion_junctions = Channel.empty()
     if('star_fusion' in rna_tools) {
-        STAR_ALIGN_FUSION(
+        STAR_ALIGN_STARFUSION(
             reads,
             ch_map_index,
             gtf,
@@ -121,29 +126,67 @@ workflow FASTQ_ALIGN_RNA {
             params.seq_platform ?: '',
             'ILLUMINA'
         )
-        ch_fusion_sorted_bam = STAR_ALIGN_FUSION.out.bam_sorted
-        ch_versions          = ch_versions.mix(STAR_ALIGN_FUSION.out.versions)
-        // No need to sort, just index and run stats
-        INDEX_STATS_FUSION(ch_fusion_sorted_bam, fasta)
-        ch_versions = ch_versions.mix(INDEX_STATS_FUSION.out.versions)
-        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.stats)
-        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.flagstat)
-        ch_reports  = ch_reports.mix(INDEX_STATS_FUSION.out.idxstats)
-        ch_fusion_sorted_bam_index = INDEX_STATS_FUSION.out.bam.join(INDEX_STATS_FUSION.out.bai)
+        ch_starfusion_bam       = STAR_ALIGN_STARFUSION.out.bam
+        ch_starfusion_junctions = STAR_ALIGN_STARFUSION.out.junction
+        ch_versions             = ch_versions.mix(STAR_ALIGN_STARFUSION.out.versions)
+        // Sort downstream to optimise STAR alignment
+        SORT_STATS_STARFUSION(ch_starfusion_bam, fasta)
+        ch_versions = ch_versions.mix(SORT_STATS_STARFUSION.out.versions)
+        ch_reports  = ch_reports.mix(SORT_STATS_STARFUSION.out.stats)
+        ch_reports  = ch_reports.mix(SORT_STATS_STARFUSION.out.flagstat)
+        ch_reports  = ch_reports.mix(SORT_STATS_STARFUSION.out.idxstats)
+        ch_starfusion_sorted_bam_index = SORT_STATS_STARFUSION.out.bam.join(SORT_STATS_STARFUSION.out.bai)
         // Allow user to save as CRAM if they want.
         if(!params.save_output_as_bam && params.save_mapped) {
-            CONVERT_FUSION(
-                ch_fusion_sorted_bam_index,
+            CONVERT_STARFUSION_BAM(
+                ch_starfusion_sorted_bam_index,
                 fasta,
                 fasta_fai
             )
-            ch_versions = ch_versions.mix(CONVERT_FUSION.out.versions)
+            ch_versions = ch_versions.mix(CONVERT_STARFUSION_BAM.out.versions)
+        }
+    }
+
+    //
+    // STAR FOR ARRIBA
+    //
+    ch_arriba_sorted_bam_index = Channel.empty()
+    if('arriba' in rna_tools) {
+        STAR_ALIGN_ARRIBA(
+            reads,
+            ch_map_index,
+            gtf,
+            false,
+            params.seq_platform ?: '',
+            'ILLUMINA'
+        )
+        ch_arriba_bam = STAR_ALIGN_ARRIBA.out.bam
+        ch_versions   = ch_versions.mix(STAR_ALIGN_ARRIBA.out.versions)
+        // Sort downstream to optimise STAR alignment
+        SORT_STATS_ARRIBA(ch_arriba_bam, fasta)
+        ch_versions = ch_versions.mix(SORT_STATS_ARRIBA.out.versions)
+        ch_reports  = ch_reports.mix(SORT_STATS_ARRIBA.out.stats)
+        ch_reports  = ch_reports.mix(SORT_STATS_ARRIBA.out.flagstat)
+        ch_reports  = ch_reports.mix(SORT_STATS_ARRIBA.out.idxstats)
+        ch_arriba_sorted_bam_index = SORT_STATS_ARRIBA.out.bam.join(SORT_STATS_ARRIBA.out.bai)
+        // Allow user to save as CRAM if they want.
+        if(!params.save_output_as_bam && params.save_mapped) {
+            CONVERT_ARRIBA_BAM(
+                ch_arriba_sorted_bam_index,
+                fasta,
+                fasta_fai
+            )
+            ch_versions = ch_versions.mix(CONVERT_ARRIBA_BAM.out.versions)
         }
     }
 
 
+
     emit:
-        quant_bam_transcript = ch_quant_sorted_bam_index // tuple meta, bam, bai [sorted transcriptome bam file]
-        versions             = ch_versions
-        reports              = ch_reports
+        arriba_bam            = ch_arriba_sorted_bam_index // tuple meta, bam, bai [sorted bam]
+        salmon_bam_transcript = ch_salmon_sorted_bam_index // tuple meta, bam, bai [sorted transcriptome bam file]
+        starfusion_bam        = ch_starfusion_sorted_bam_index // tuple meta(val), bam, bai [sorted bam]
+        starfusion_junctions  = ch_starfusion_junctions    // tuple meta, out.tab
+        versions              = ch_versions
+        reports               = ch_reports
 }

@@ -68,7 +68,8 @@ prepareDNAIndex.unique { a, b -> a <=> b }
 
 def rna_aligners_hashmap = [
     'star':'star_salmon',
-    'star_fusion':'star_fusion'
+    'star_fusion':'star_fusion',
+    'arriba':'arriba'
 ]
 
 // combine all possible DNA tools that require aligners
@@ -129,6 +130,7 @@ include { FASTQ_ALIGN_RNA             } from '../subworkflows/local/fastq_align_
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
 include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
 include { QUANTIFY_SALMON             } from '../subworkflows/local/quantify_salmon'
+include { STARFUSION                  } from '../subworkflows/local/starfusion'
 //include { STRUCTURAL_VARIATION        } from '../subworkflows/local/structural_variation'
 
 /*
@@ -313,6 +315,9 @@ workflow HEALED {
     - conf/modules/prepare_genome.config
 
     Parameters                                                               Explanation
+    - params.arriba_blacklist                                   Path to Arriba blacklist
+    - params.arriba_known_fusions                           Path to Arriba known fusions
+    - params.arriba_protein_domains                       Path to Arriba protein domains
     - params.bwa_index                                       Path to BWA index directory
     - params.star_index                                    Path to STAR inbdex directory
     - params.no_intervals                 Output Channel.value([]) in place of intervals
@@ -347,7 +352,8 @@ workflow HEALED {
                                 SPLIT ASSAYS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     After processing reads, it makes sense to split the channel based on genomic assays.
-    To my knowledge, no tool takes as input both DNA and RNA files.
+    To my knowledge, no tool takes as input both DNA and RNA sequencing files simulaten-
+    eously.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
@@ -455,12 +461,12 @@ workflow HEALED {
     ch_versions = ch_versions.mix(FASTQ_ALIGN_RNA.out.versions)
     ch_reports  = ch_reports.mix(FASTQ_ALIGN_RNA.out.reports)
 
-    FASTQ_ALIGN_RNA.out.quant_bam_transcript.view()
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     FASTQ_ALIGN_RNA.out.quant_bam_transcript.view():
     [[id:GM12878N, sample:GM12878N, patient:GM12878, status:normal, strandedness:reverse], GM12878N.quant.bam, GM12878N.quant.bam.bai]
+    FASTQ_ALIGN_RNA.out.fusion_junctions.view():
+    [[id:fusion2, sample:fusion2, patient:fusion2, status:tumor, strandedness:unstranded], fusion2.fusion.Chimeric.out.junction]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
@@ -490,7 +496,7 @@ workflow HEALED {
 */
 
     QUANTIFY_SALMON(
-        FASTQ_ALIGN_RNA.out.quant_bam_transcript.map{ meta, bam, bai -> [ meta, bam ] },
+        FASTQ_ALIGN_RNA.out.salmon_bam_transcript.map{ meta, bam, bai -> [ meta, bam ] },
         ch_dummy_file,
         PREPARE_GENOME.out.transcript_fasta,
         PREPARE_GENOME.out.filter_gtf,
@@ -503,12 +509,45 @@ workflow HEALED {
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Outputs are not yet consumed downstream, omitting channel structure until required.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                RNA FUSION
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Utilise outputs from FASTQ_ALIGN_RNA specific to RNA Fusion. STAR-FUSION requires as
+    input the junctions file output by STAR. Bring the sequencing reads too for fusion-
+    inspector?
 
+    Subworkflow, module files:
+    - subworkflows/local/star_fusion
+        - modules/local/starfusion/detect
 
+    Config file:
+    - conf/modules/starfusion.config
 
+    Parameters                                                               Explanation
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+    STARFUSION(
+        FASTQ_ALIGN_RNA.out.starfusion_junctions,
+        PREPARE_GENOME.out.ctat_genome_lib,
+        rna_tools
+    )
+
+    // Gather versions
+    ch_versions = ch_versions.mix(STARFUSION.out.versions)
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    BAM_MARKDUPLICATES.out.cram.view()
+    [[id:HCC1395N_T1, data_type:bam, patient:HCC1395, sample:HCC1395N_T1, status:normal], HCC1395N_T1.md.cram, HCC1395N_T1.md.cram.crai]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/*
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

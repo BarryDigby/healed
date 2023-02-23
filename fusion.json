@@ -1,0 +1,12 @@
+{
+    "input": "dev_data/fusion_samp.csv",
+    "outdir": "starfusion",
+    "wes": true,
+    "intervals": "dev_data/twist.chr21.exome.bed",
+    "save_mapped": true,
+    "save_output_as_bam": false,
+    "rna_fusion": "arriba",
+    "fasta": "dev_data/minigenome.fa",
+    "gtf": "dev_data/minigenome.gtf",
+    "ctat_genome_lib": "/data/github/healed/dev_data/ctat_genome_lib_build_dir"
+}
