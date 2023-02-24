@@ -8,6 +8,7 @@ process ARRIBA_REF_DOWNLOAD {
 
     output:
     path "blacklist_hg38_GRCh38_v2.3.0.tsv.gz"            , emit: blacklist
+    path "cytobands_hg38_GRCh38_v2.3.0.tsv"               , emit: cytobands
     path "known_fusions_hg38_GRCh38_v2.3.0.tsv.gz"        , emit: known_fusions
     path "protein_domains_hg38_GRCh38_v2.3.0.gff3"        , emit: protein_domains
 
@@ -19,8 +20,9 @@ process ARRIBA_REF_DOWNLOAD {
     tar xvf arriba_v2.3.0.tar.gz
 
     mv arriba_v2.3.0/database/blacklist_hg38_GRCh38_v2.3.0.tsv.gz .
-    mv arriba_v2.3.0/database/protein_domains_hg38_GRCh38_v2.3.0.gff3 .
+    mv arriba_v2.3.0/database/cytobands_hg38_GRCh38_v2.3.0.tsv .
     mv arriba_v2.3.0/database/known_fusions_hg38_GRCh38_v2.3.0.tsv.gz .
+    mv arriba_v2.3.0/database/protein_domains_hg38_GRCh38_v2.3.0.gff3 .
 
     rm -rf arriba_v2.3.0*
     """

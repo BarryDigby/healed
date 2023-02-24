@@ -180,10 +180,8 @@ workflow FASTQ_ALIGN_RNA {
         }
     }
 
-
-
     emit:
-        arriba_bam            = ch_arriba_sorted_bam_index // tuple meta, bam, bai [sorted bam]
+        arriba_bam            = ch_arriba_sorted_bam_index // tuple meta, bam, bai [sorted (not required but should improve compute) bam]
         salmon_bam_transcript = ch_salmon_sorted_bam_index // tuple meta, bam, bai [sorted transcriptome bam file]
         starfusion_bam        = ch_starfusion_sorted_bam_index // tuple meta(val), bam, bai [sorted bam]
         starfusion_junctions  = ch_starfusion_junctions    // tuple meta, out.tab

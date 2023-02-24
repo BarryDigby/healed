@@ -68,7 +68,7 @@ prepareDNAIndex.unique { a, b -> a <=> b }
 
 def rna_aligners_hashmap = [
     'star':'star_salmon',
-    'star_fusion':'star_fusion',
+    'star_fusion':'star_fusion', // tidy this when done.
     'arriba':'arriba'
 ]
 
@@ -116,9 +116,9 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { FASTQC                                         } from '../modules/nf-core/fastqc/main'
-include { MULTIQC                                        } from '../modules/nf-core/multiqc/main'
-include { CUSTOM_DUMPSOFTWAREVERSIONS                    } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { FASTQC                      } from '../modules/nf-core/fastqc/main'
+include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
+include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 
 
 // Use subworkflows for everything!
@@ -130,7 +130,7 @@ include { FASTQ_ALIGN_RNA             } from '../subworkflows/local/fastq_align_
 include { PREPARE_GENOME              } from '../subworkflows/local/prepare_genome'
 include { PREPARE_INTERVALS           } from '../subworkflows/local/prepare_intervals'
 include { QUANTIFY_SALMON             } from '../subworkflows/local/quantify_salmon'
-include { STARFUSION                  } from '../subworkflows/local/starfusion'
+include { FUSION_DETECTION            } from '../subworkflows/local/fusion_detection'
 //include { STRUCTURAL_VARIATION        } from '../subworkflows/local/structural_variation'
 
 /*
@@ -316,6 +316,7 @@ workflow HEALED {
 
     Parameters                                                               Explanation
     - params.arriba_blacklist                                   Path to Arriba blacklist
+    - params.arriba_cytoscape                                   Path to Arriba cytobands
     - params.arriba_known_fusions                           Path to Arriba known fusions
     - params.arriba_protein_domains                       Path to Arriba protein domains
     - params.bwa_index                                       Path to BWA index directory
@@ -515,37 +516,42 @@ workflow HEALED {
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                                RNA FUSION
+                                RNA FUSION DETECTION
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Utilise outputs from FASTQ_ALIGN_RNA specific to RNA Fusion. STAR-FUSION requires as
     input the junctions file output by STAR. Bring the sequencing reads too for fusion-
     inspector?
 
     Subworkflow, module files:
-    - subworkflows/local/star_fusion
+    - subworkflows/local/fusion_detection
+        - modules/nf-core/arriba
         - modules/local/starfusion/detect
 
     Config file:
-    - conf/modules/starfusion.config
+    - conf/modules/fusion_detection.config
 
     Parameters                                                               Explanation
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-    STARFUSION(
+    FUSION_DETECTION(
         FASTQ_ALIGN_RNA.out.starfusion_junctions,
         PREPARE_GENOME.out.ctat_genome_lib,
+        fasta,
+        gtf,
+        FASTQ_ALIGN_RNA.out.arriba_bam,
+        PREPARE_GENOME.out.arriba_blacklist,
+        PREPARE_GENOME.out.arriba_known_fusions,
+        PREPARE_GENOME.out.arriba_protein_domains,
         rna_tools
     )
 
     // Gather versions
-    ch_versions = ch_versions.mix(STARFUSION.out.versions)
+    ch_versions = ch_versions.mix(FUSION_DETECTION.out.versions)
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    BAM_MARKDUPLICATES.out.cram.view()
-    [[id:HCC1395N_T1, data_type:bam, patient:HCC1395, sample:HCC1395N_T1, status:normal], HCC1395N_T1.md.cram, HCC1395N_T1.md.cram.crai]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /*
 
@@ -568,10 +574,10 @@ workflow HEALED {
     - conf/modules/markduplicates.config
 
     Parameters                                                               Explanation
-    params.rna_quant            Tool used for RNA quantification. Informs aligner choice
-    params.rna_fusion         Tool used for RNA-Fusion detection. Informs aligner choice
-    params.save_mapped                                                Save mapped files?
-    params.save_output_as_bam                                  Save as BAM? If not, CRAM
+    - params.rna_quant            Tool used for RNA quantification. Informs aligner choice
+    - params.rna_fusion         Tool used for RNA-Fusion detection. Informs aligner choice
+    - params.save_mapped                                                Save mapped files?
+    - params.save_output_as_bam                                  Save as BAM? If not, CRAM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
