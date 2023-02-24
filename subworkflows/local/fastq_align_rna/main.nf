@@ -92,10 +92,12 @@ workflow FASTQ_ALIGN_RNA {
             params.seq_platform ?: '',
             'ILLUMINA'
         )
-        ch_salmon_bam_transcript = STAR_ALIGN_SALMON.out.bam_transcript
+        // bam_type for output file - delineate genome vs. transcriptome files
+        ch_salmon_bam            = STAR_ALIGN_SALMON.out.bam.map{ meta, bam -> [ meta + [bam_type:'genome'], bam ]}
+        ch_salmon_bam_transcript = STAR_ALIGN_SALMON.out.bam_transcript.map{ meta, bam -> [ meta + [bam_type:'transcriptome'], bam ]}
         ch_versions              = ch_versions.mix(STAR_ALIGN_SALMON.out.versions.first())
         // Aligned.toTranscriptome.out.bam is never sorted.
-        SORT_STATS_SALMON(ch_salmon_bam_transcript, fasta)
+        SORT_STATS_SALMON(ch_salmon_bam.mix(ch_salmon_bam_transcript), fasta)
         ch_versions = ch_versions.mix(SORT_STATS_SALMON.out.versions)
         ch_reports  = ch_reports.mix(SORT_STATS_SALMON.out.stats)
         ch_reports  = ch_reports.mix(SORT_STATS_SALMON.out.flagstat)
