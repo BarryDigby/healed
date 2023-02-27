@@ -1,0 +1,5 @@
+patient,assay,status,sample,lane,fastq_1,fastq_2,strandedness
+HCC1395,dna,normal,HCC1395N_T1,1,/data/github/healed/dev_data/HCC1395N_R1.fastq.gz,/data/github/healed/dev_data/HCC1395N_R2.fastq.gz,
+HCC1395,dna,tumor,HCC1395T_T1,1,/data/github/healed/dev_data/HCC1395T_R1.fastq.gz,/data/github/healed/dev_data/HCC1395T_R2.fastq.gz,
+HCC1395,rna,normal,HCC1395N_T2,1,/data/github/healed/dev_data/rnaseq_rep1_1.fastq.gz,/data/github/healed/dev_data/rnaseq_rep1_2.fastq.gz,unstranded
+HCC1395,rna,tumor,HCC1395T_T2,1,/data/github/healed/dev_data/rnaseq_rep2_1.fastq.gz,/data/github/healed/dev_data/rnaseq_rep2_2.fastq.gz,unstranded
