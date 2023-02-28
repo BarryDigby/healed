@@ -54,10 +54,10 @@ workflow FUSION_DETECTION {
             starfusion_junctions,
             ctat_genome_lib
         )
-        ch_starfusion_predictions   = DETECT_FUSIONS.out.fusions
-        ch_starfusion_abridged      = DETECT_FUSIONS.out.abridged
-        ch_starfusion_coding_effect = DETECT_FUSIONS.out.coding_effect
-        ch_versions                 = ch_versions.mix(DETECT_FUSIONS.out.versions)
+        ch_starfusion_predictions   = STARFUSION.out.fusions
+        ch_starfusion_abridged      = STARFUSION.out.abridged
+        ch_starfusion_coding_effect = STARFUSION.out.coding_effect
+        ch_versions                 = ch_versions.mix(STARFUSION.out.versions)
     }
 
     emit:

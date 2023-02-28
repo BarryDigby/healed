@@ -153,6 +153,7 @@ workflow FASTQ_ALIGN_RNA {
     // STAR FOR ARRIBA
     //
     ch_arriba_sorted_bam_index = Channel.empty()
+    ch_arriba_junctions = Channel.empty()
     if('arriba' in rna_tools) {
         STAR_ALIGN_ARRIBA(
             reads,
@@ -162,8 +163,9 @@ workflow FASTQ_ALIGN_RNA {
             params.seq_platform ?: '',
             'ILLUMINA'
         )
-        ch_arriba_bam = STAR_ALIGN_ARRIBA.out.bam
-        ch_versions   = ch_versions.mix(STAR_ALIGN_ARRIBA.out.versions)
+        ch_arriba_bam      = STAR_ALIGN_ARRIBA.out.bam
+        ch_arriba_junctions = STAR_ALIGN_ARRIBA.out.junction
+        ch_versions        = ch_versions.mix(STAR_ALIGN_ARRIBA.out.versions)
         // Sort downstream to optimise STAR alignment
         SORT_STATS_ARRIBA(ch_arriba_bam, fasta)
         ch_versions = ch_versions.mix(SORT_STATS_ARRIBA.out.versions)
@@ -184,6 +186,7 @@ workflow FASTQ_ALIGN_RNA {
 
     emit:
         arriba_bam            = ch_arriba_sorted_bam_index // tuple meta, bam, bai [sorted (not required but should improve compute) bam]
+        arriba_junctions      = ch_arriba_junctions        // tuple meta, junction.
         salmon_bam_transcript = ch_salmon_sorted_bam_index.filter{ it[0].bam_type == 'transcriptome' } // tuple meta, bam, bai [sorted transcriptome bam file]
         starfusion_bam        = ch_starfusion_sorted_bam_index // tuple meta(val), bam, bai [sorted bam]
         starfusion_junctions  = ch_starfusion_junctions    // tuple meta, out.tab

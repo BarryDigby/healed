@@ -598,6 +598,75 @@ workflow HEALED {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /*
 
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                ABRA2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Perform fusion/indel realignment using ABRA2 if the user wants to. This step is man-
+    datory for ABRA CADABRA variant calling. Works on both DNA and RNA outputs: joint or
+    single for DNA, single for RNA. Expects inputs to be coordinate sorted and indexed.
+    STARFUSION does not require the aligned BAM, so for now, we will only use ABRA2 for
+    Arriba & DNA.
+
+    Subworkflow, module files:
+    - subworkflows/local/bam_abra2
+
+
+    Config file:
+    - conf/modules/abra2.config
+
+    Parameters                                                               Explanation
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+    ch_abra2_bams  = Channel.empty() // RNA BAM
+    ch_abra2_crams = Channel.empty() // DNA CRAM
+    if( params.abra2_realignment ) {
+        BAM_ABRA2(
+            BAM_MARKDUPLICATES.out.cram,
+            FASTQ_ALIGN_RNA.out.arriba_bam,
+            fasta,
+            fasta_fai,
+            gtf,
+            FASTQ_ALIGN_RNA.out.arriba_junctions,
+            intervals_bed_combined,
+            dna_tools,
+            rna_tools
+        )
+        // Gather versions
+        ch_versions = ch_versions.mix(BAM_ABRA2.out.versions)
+        abra2_bams  = ch_abra2_bams.mix(BAM_ABRA2.out.bam)
+        abra2_crams = ch_abra2_crams.mix(BAM_ABRA2.out.cram)
+    } else if( !params.abra2_realignment && 'abra_cadabra' in dna_snv_indel_list ) {
+        BAM_ABRA2(
+            BAM_MARKDUPLICATES.out.cram,
+            [],
+            fasta,
+            fasta_fai,
+            [],
+            [],
+            intervals_bed_combined,
+            dna_tools,
+            rna_tools
+        )
+        abra2_crams = ch_abra2_crams.mix(BAM_ABRA2.out.cram)
+    } else {
+        ch_abra2_bams = ch_abra2_bams.mix(FASTQ_ALIGN_RNA.out.arriba_bam)
+        ch_abra2_crams = ch_abra2_crams.mix(BAM_MARKDUPLICATES.out.cram)
+    }
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    BAM_MARKDUPLICATES.out.cram.view()
+    [[id:HCC1395N_T1, data_type:bam, patient:HCC1395, sample:HCC1395N_T1, status:normal], HCC1395N_T1.md.cram, HCC1395N_T1.md.cram.crai]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/*
+
+
+
+
     //
     // SAVE BAM AS CRAM
     //

@@ -4,8 +4,8 @@ process ABRA2 {
 
     conda "bioconda::abra2=2.24"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/abra2:2.24--h7d875b9_0':
-        'quay.io/biocontainers/abra2:2.24--h7d875b9_0' }"
+        'https://depot.galaxyproject.org/singularity/abra2:2.24--h9f5acd7_1':
+        'quay.io/biocontainers/abra2:2.24--h9f5acd7_1' }"
 
     input:
     tuple val(meta),  path(normal_bam), path(normal_bai) // [channel] normal bam,bai or ifEmpty([])
@@ -14,7 +14,6 @@ process ABRA2 {
     path gtf                                             // [channel] gtf
     path junctions                                       // [channel] STAR SJ.out.tab file
     path targets                                         // [channel] intervals
-    val toggle_rna                                       // [boolean] toggle RNA mode
 
     output:
     tuple val(meta),  path("${meta.id}.abra.bam"),  path("${meta.id}.abra.bai"),    optional:true, emit: abra2_normal
@@ -29,29 +28,29 @@ process ABRA2 {
     prefix = task.ext.prefix ?: "${meta.id}"
     // define input lists. Use .ifEmpty([]) on inputs to invoke below logic.
     def input_list = tumor_bam && normal_bam != [] ? "--in $normal_bam,$tumor_bam" : tumor_bam == [] ? "--in $normal_bam" : normal_bam == [] ? "--in $tumor_bam" : ""
-    // dont use def to avail of meta information
     output_list = tumor_bam && normal_bam != [] ? "--out ${meta.id}.abra.bam,${meta2.id}.abra.bam" : tumor_bam == [] ? "--out ${meta.id}.abra.bam" : normal_bam == [] ? "--out ${meta2.id}.abra.bam" : ""
-    // RNA or DNA mode means different params
-    def dna_files = toggle_rna ? "" : targets ? "--targets $targets" : ""
-    def rna_files = toggle_rna ? "--gtf $gtf --junctions $junctions" : ""
-    def rna_args  = toggle_rna ? "--sua --dist 5000" : ""
+    def targs = targets ? "--targets $targets" : ""
+    def gtf_file = gtf ? "--gtf $gtf" : ""
+    def juncs = junctions ? "--junctions $junctions" : ""
     def avail_mem = 3
     if (!task.memory) {
         log.info '[ABRA2 realignment] Available memory not known - defaulting to 3GB. Specify process memory requirements to change this.'
     } else {
         avail_mem = task.memory.giga
     }
+    // Not sure what conda path actually is but handler in place below
+    def binPath = ( params.enable_conda ? "abra2" : "/usr/local/share/abra2-2.24-1/abra2.jar" )
     """
-    java "-Xmx${avail_mem}g" -jar /usr/local/share/abra2-2.24-0/abra2.jar \\
+    java "-Xmx${avail_mem}g" -jar $binPath \\
         $input_list \\
         $output_list \\
         --tmpdir ./ \\
         --ref $fasta \\
         --threads $task.cpus \\
-        $dna_files \\
-        $rna_files \\
+        $targs \\
+        $gtf_file \\
         --index \\
-        $rna_args \\
+        $juncs \\
         $args
 
     cat <<-END_VERSIONS > versions.yml

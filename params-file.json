@@ -4,7 +4,8 @@
     "wes": true,
     "intervals": "dev_data/twist.chr21.exome.bed",
     "save_mapped": true,
-    "rna_quant": "star_salmon",
+    "rna_fusion": "arriba",
+    "abra2_realignment": true,
     "fasta": "dev_data/chr21.fa",
     "gtf": "dev_data/chr21.gtf",
     "ctat_genome_lib": "/data/github/healed/dev_data"
