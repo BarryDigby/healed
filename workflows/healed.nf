@@ -407,6 +407,22 @@ workflow HEALED {
         dna_tools
     )
 
+    // Remove ugly file names (_T1-1 etc. Lanes, split samples have been handled)
+    FASTQ_ALIGN_DNA.out.cram.map{ meta, cram, crai ->
+                new_id         = meta.id - ~/_T\d+/
+                new_sample     = meta.sample - ~/_T\d+/
+
+                [[
+                    id:        new_id,
+                    data_type: meta.data.type,
+                    patient:   meta.patient,
+                    sample:    new_sample,
+                    status:    meta.status
+                    ],
+                cram, crai ]
+
+    }.set{ aligned_dna_crams }
+
     // Gather versions
     ch_versions = ch_versions.mix(FASTQ_ALIGN_DNA.out.versions)
 
@@ -582,7 +598,7 @@ workflow HEALED {
 */
 
     BAM_MARKDUPLICATES(
-        FASTQ_ALIGN_DNA.out.cram,
+        aligned_dna_crams,
         fasta,
         fasta_fai,
         intervals_bed_combined
