@@ -45,8 +45,8 @@ workflow BAM_ABRA2 {
                         tumor:  meta.status == 'tumor'; return [meta, bam, bai]
                         normal: meta.status =='normal'; return [meta, bam, bai]
                     }.set{ ch_abra2_dna_input }
-        abra2_dna_normal = ch_abra2_dna_input.normal.ifEmpty(Channel.of([ [], [], [] ]))
-        abra2_dna_tumor  = ch_abra2_dna_input.tumor.ifEmpty(Channel.of([ [], [], [] ]))
+        abra2_dna_normal = ch_abra2_dna_input.normal.ifEmpty([ [], [], [] ])
+        abra2_dna_tumor  = ch_abra2_dna_input.tumor.ifEmpty([ [], [], [] ])
 
         ABRA2_DNA(
             abra2_dna_normal,
@@ -79,8 +79,8 @@ workflow BAM_ABRA2 {
                     tumor:  meta.status == 'tumor'; return [meta, bam, bai]
                     normal: meta.status =='normal'; return [meta, bam, bai]
         }.set{ ch_abra2_rna_input }
-        abra2_rna_normal = ch_abra2_rna_input.normal.ifEmpty(Channel.of([ [], [], [] ]))
-        abra2_rna_tumor  = ch_abra2_rna_input.tumor.ifEmpty(Channel.of([ [], [], [] ]))
+        abra2_rna_normal = ch_abra2_rna_input.normal.ifEmpty([ [], [], [] ])
+        abra2_rna_tumor  = ch_abra2_rna_input.tumor.ifEmpty([ [], [], [] ])
 
         ABRA2_RNA(
             abra2_rna_normal,

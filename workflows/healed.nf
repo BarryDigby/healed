@@ -414,7 +414,7 @@ workflow HEALED {
 
                 [[
                     id:        new_id,
-                    data_type: meta.data.type,
+                    data_type: meta.data_type,
                     patient:   meta.patient,
                     sample:    new_sample,
                     status:    meta.status

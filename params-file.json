@@ -4,7 +4,7 @@
     "wes": true,
     "intervals": "dev_data/twist.chr21.exome.bed",
     "save_mapped": true,
-    "rna_fusion": "arriba",
+    "dna_snv_indel": "mutect2",
     "abra2_realignment": true,
     "fasta": "dev_data/chr21.fa",
     "gtf": "dev_data/chr21.gtf",

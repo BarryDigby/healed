@@ -1,0 +1,2 @@
+patient,assay,status,sample,lane,fastq_1,fastq_2,strandedness
+HCC1395,DNA,0,HCC1395N,1,/data/github/healed/dev_data/HCC1395N_R1.fastq.gz,/data/github/healed/dev_data/HCC1395N_R2.fastq.gz,
