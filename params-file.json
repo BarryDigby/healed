@@ -8,5 +8,9 @@
     "abra2_realignment": true,
     "fasta": "dev_data/chr21.fa",
     "gtf": "dev_data/chr21.gtf",
-    "ctat_genome_lib": "/data/github/healed/dev_data"
+    "ctat_genome_lib": "/data/github/healed/dev_data",
+    "arriba_blacklist": "dev_data/arriba/blacklist_hg38_GRCh38_v2.3.0.tsv.gz",
+    "arriba_cytobands": "dev_data/arriba/cytobands_hg38_GRCh38_v2.3.0.tsv",
+    "arriba_known_fusions": "dev_data/arriba/known_fusions_hg38_GRCh38_v2.3.0.tsv.gz",
+    "arriba_protein_domains": "dev_data/arriba/protein_domains_hg38_GRCh38_v2.3.0.gff3"
 }

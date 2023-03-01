@@ -48,7 +48,7 @@ workflow PREPARE_GENOME {
     ch_bwa_index = Channel.empty()
     if('bwa' in prepare_tool_indices) {
         if(params.bwa_index) {
-            ch_bwa_index = file(params.bwa_index)
+            ch_bwa_index = Channel.fromPath(params.bwa_index).collect()
             ch_bwa_index = ch_bwa_index.map{ it -> [[id:it[0].baseName], it]}
         } else {
             ch_bwa_index = BWA_INDEX(fasta.map{ it -> [[id:it[0].baseName], it] }).index
@@ -59,7 +59,7 @@ workflow PREPARE_GENOME {
     ch_star_index = Channel.empty()
     if(prepare_tool_indices.every{["star", "star_fusion", "arriba"]}) {
         if (params.star_index) {
-            ch_star_index = file(params.star_index)
+            ch_star_index = Channel.fromPath(params.star_index).collect()
         } else {
             ch_star_index = STAR_GENOMEGENERATE( fasta, gtf ).index
             ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
