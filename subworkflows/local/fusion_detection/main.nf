@@ -2,13 +2,16 @@
 // FUSION DETECTION
 //
 
-include { ARRIBA     } from '../../../modules/nf-core/arriba/main'
-include { STARFUSION } from '../../../modules/local/starfusion/detect/main'
+include { ARRIBA        } from '../../../modules/nf-core/arriba/main'
+include { STARFUSION    } from '../../../modules/local/starfusion/detect/main'
+include { FUSIONCATCHER } from '../../../modules/local/fusioncatcher/detect/main'
 
 workflow FUSION_DETECTION {
     take:
         starfusion_junctions
         ctat_genome_lib
+        fusioncatcher_lib
+        reads
         fasta
         gtf
         arriba_bam
@@ -44,6 +47,23 @@ workflow FUSION_DETECTION {
     }
 
     //
+    // FUSIONCATCHER
+    //
+    ch_fusioncatcher_fusions = Channel.empty()
+    ch_fusioncatcher_summary = Channel.empty()
+    ch_fusioncatcher_log     = Channel.empty()
+    if('fusioncatcher' in rna_tools) {
+        FUSIONCATCHER(
+            reads,
+            fusioncatcher_lib
+        )
+        ch_fusioncatcher_fusions = FUSIONCATCHER.out.fusions
+        ch_fusioncatcher_summary = FUSIONCATCHER.out.summary
+        ch_fusioncatcher_log     = FUSIONCATCHER.out.log
+        ch_versions              = ch_versions.mix(FUSIONCATCHER.out.versions)
+    }
+
+    //
     // STARFUSION
     //
     ch_starfusion_predictions   = Channel.empty()
@@ -63,6 +83,9 @@ workflow FUSION_DETECTION {
     emit:
         arriba_fusions           = ch_arriba_fusions
         arriba_fusions_discarded = ch_arriba_fusions_discarded
+        fusioncatcher_fusions    = ch_fusioncatcher_fusions
+        fusioncatcher_summary    = ch_fusioncatcher_summary
+        fusioncatcher_log        = ch_fusioncatcher_log
         starfusion_predictions   = ch_starfusion_predictions
         starfusion_abridged      = ch_starfusion_abridged
         starfusion_coding_effect = ch_starfusion_coding_effect

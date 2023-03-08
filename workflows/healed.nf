@@ -67,9 +67,10 @@ if(dna_tools.size() > 0) {
 prepareDNAIndex.unique { a, b -> a <=> b }
 
 def rna_aligners_hashmap = [
-    'star':'star_salmon',
+    'star':'star_salmon,star_fusion,arriba',
     'star_fusion':'star_fusion', // tidy this when done.
-    'arriba':'arriba'
+    'arriba':'arriba',
+    'fusioncatcher':'fusioncatcher'
 ]
 
 // combine all possible DNA tools that require aligners
@@ -554,6 +555,8 @@ workflow HEALED {
     FUSION_DETECTION(
         FASTQ_ALIGN_RNA.out.starfusion_junctions,
         PREPARE_GENOME.out.ctat_genome_lib,
+        PREPARE_GENOME.out.fusioncatcher_lib,
+        ch_reads_to_map.rna,
         fasta,
         gtf,
         FASTQ_ALIGN_RNA.out.arriba_bam,

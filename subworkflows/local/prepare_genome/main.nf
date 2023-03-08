@@ -12,7 +12,9 @@ include { GTF_GENE_FILTER                                 } from '../../../modul
 
 //RNA Fusion
 include { ARRIBA_REF_DOWNLOAD                             } from '../../../modules/local/arriba/ref_download/main'
-include { CTAT_GENOME_LIB                                 } from '../../../modules/local/ctat_genome/main'
+include { CTAT_GENOME_LIB_DOWNLOAD                        } from '../../../modules/local/ctat_genome/download/main'
+inlcude { CTAT_GENOME_LIB_BUILD                           } from '../../../modules/local/ctat_genome/build/main'
+include { FUSIONCATCHER_DOWNLOAD                          } from '../../../modules/local/fusioncatcher/download/main'
 
 workflow PREPARE_GENOME {
     take:
@@ -57,6 +59,7 @@ workflow PREPARE_GENOME {
     }
 
     ch_star_index = Channel.empty()
+    //if('star' in prepare_tool_indices)
     if(prepare_tool_indices.every{["star", "star_fusion", "arriba"]}) {
         if (params.star_index) {
             ch_star_index = Channel.fromPath(params.star_index).collect()
@@ -73,9 +76,9 @@ workflow PREPARE_GENOME {
             ch_ctat_genome_lib = file(params.ctat_genome_lib)
             ch_ctat_genome_gtf = file("${params.ctat_genome_lib}/ref_annot.gtf")
         } else {
-            CTAT_GENOME_LIB()
-            ch_ctat_genome_lib = CTAT_GENOME_LIB.out.reference
-            ch_ctat_genome_gtf = CTAT_GENOME_LIB.out.chrgtf
+            CTAT_GENOME_LIB_DOWNLOAD()
+            ch_ctat_genome_lib = CTAT_GENOME_LIB_DOWNLOAD.out.reference
+            ch_ctat_genome_gtf = CTAT_GENOME_LIB_DOWNLOAD.out.chrgtf
         }
     }
 
@@ -89,6 +92,17 @@ workflow PREPARE_GENOME {
             ch_transcript_fasta = MAKE_TRANSCRIPTS_FASTA ( fasta, ch_filter_gtf ).transcript_fasta
             ch_versions         = ch_versions.mix(GTF_GENE_FILTER.out.versions)
             ch_versions         = ch_versions.mix(MAKE_TRANSCRIPTS_FASTA.out.versions)
+        }
+    }
+
+    ch_fusioncatcher_lib = Channel.empty()
+    if('fusioncatcher' in prepare_tool_indices) {
+        if(params.fusioncatcher_lib){
+            ch_fusioncatcher_lib = Channel.fromPath(params.fusioncatcher_lib)
+        } else {
+            FUSIONCATCHER_DOWNLOAD()
+            ch_fusioncatcher_lib = FUSIONCATCHER_DOWNLOAD.out.reference
+            ch_versions          = ch_versions.mix(FUSIONCATCHER_DOWNLOAD.out.versions)
         }
     }
 
@@ -130,6 +144,7 @@ workflow PREPARE_GENOME {
         gc_file                          = gc_file
         rt_file                          = rt_file */
         filter_gtf                       = ch_filter_gtf
+        fusioncatcher_lib                = ch_fusioncatcher_lib
         star_index                       = ch_star_index
         transcript_fasta                 = ch_transcript_fasta
         versions                         = ch_versions                                                         // channel: [ versions.yml ]
